@@ -1,3 +1,8 @@
+import sys
+import os
+# Add parent directory to Python path to find or_llm_eval module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from mcp.server.fastmcp import FastMCP
 from or_llm_eval import or_llm_agent
 import io
