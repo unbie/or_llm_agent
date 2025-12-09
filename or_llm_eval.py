@@ -23,8 +23,8 @@ load_dotenv()
 
 # OpenAI API setup
 openai_api_data = dict(
-    api_key = os.getenv("OPENAI_API_KEY"),
-    base_url = os.getenv("OPENAI_API_BASE")
+    api_key="b0a7b8f4-397c-4e33-9c5a-12c31120a0f5",
+    base_url="https://ark.cn-beijing.volces.com/api/v3"
 )  
 
 # Anthropic API setup
@@ -235,7 +235,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs')
     parser.add_argument('--agent', action='store_true', 
                         help='Use the agent. If not specified, directly use the model to solve the problem')
-    parser.add_argument('--model', type=str, default='o3-mini',
+    parser.add_argument('--model', type=str, default='ep-20251202173916-9j664',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
     parser.add_argument('--data_path', type=str, default='data/datasets/IndustryOR.json',
                         help='Path to the dataset JSON file (supports both JSONL and regular JSON formats)')

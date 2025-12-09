@@ -33,16 +33,32 @@ load_dotenv()
 # api_data = dict(
 # api_key = os.getenv("OPENAI_API_KEY"),
 # base_url = os.getenv("OPENAI_API_BASE")
-# )   
+# )
+
+# api_data = dict(
+#     api_key = os.getenv("OPENAI_API_KEY")
+# )
+
 
 api_data = dict(
-    api_key = os.getenv("OPENAI_API_KEY")
-)   
+    # 配置 API Key，这里直接填入您的火山引擎 Key，不再从环境变量读取以避免报错
+    api_key = "b0a7b8f4-397c-4e33-9c5a-12c31120a0f5",
+    # 配置 Base URL，指定为火山引擎的接口地址
+    base_url = "https://ark.cn-beijing.volces.com/api/v3"
+)
+
+
 
 # Initialize OpenAI client
+# client = openai.OpenAI(
+#     api_key=api_data['api_key'],
+# )
+# 初始化 OpenAI 客户端
 client = openai.OpenAI(
-    api_key=api_data['api_key'],
+    api_key=api_data['api_key'],  # 传入 API Key
+    base_url=api_data['base_url'] # 传入 Base URL
 )
+
 
 def get_display_width(text):
     """
@@ -129,47 +145,96 @@ def print_header(text="", add_newline_before=True, add_newline_after=True,
     if add_newline_after:
         print()
 
-def query_llm(messages, model_name="o3-mini", temperature=0.2):
+# def query_llm(messages, model_name="ep-20251202173916-9j664", temperature=0.2):
+#     """
+#     调用 LLM 获取响应结果，使用流式输出方式。
+#
+#     Args:
+#         messages (list): 对话上下文列表。
+#         model_name (str): LLM模型名称，默认为"gpt-4"。
+#         temperature (float): 控制输出的随机性，默认为 0.2。
+#
+#     Returns:
+#         str: LLM 生成的响应内容。
+#     """
+#     # 使用stream=True启用流式输出
+#     response = client.chat.completions.create(
+#         model=model_name,
+#         messages=messages,
+#         temperature=temperature,
+#         stream=True
+#     )
+#
+#     # 用于累积完整响应
+#     full_response = ""
+#
+#     # 用于控制打印格式
+#     print("LLM Output: ", end="", flush=True)
+#
+#     # 逐块处理流式响应
+#     for chunk in response:
+#         # 首先检查choices列表是否非空
+#         if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
+#             # 然后检查是否有delta和content
+#             if hasattr(chunk.choices[0], 'delta') and hasattr(chunk.choices[0].delta, 'content'):
+#                 content = chunk.choices[0].delta.content
+#                 if content:
+#                     print(content, end="", flush=True)
+#                     full_response += content
+#
+#     # 输出完成后换行
+#     print()
+#
+#     return full_response
+def query_llm(messages, model_name="ep-20251202173916-9j664", temperature=0.2):
     """
     调用 LLM 获取响应结果，使用流式输出方式。
-    
-    Args:
-        messages (list): 对话上下文列表。
-        model_name (str): LLM模型名称，默认为"gpt-4"。
-        temperature (float): 控制输出的随机性，默认为 0.2。
-
-    Returns:
-        str: LLM 生成的响应内容。
+    兼容推理模型(DeepSeek R1)的 reasoning_content 输出。
     """
-    # 使用stream=True启用流式输出
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=temperature,
-        stream=True
-    )
-    
-    # 用于累积完整响应
-    full_response = ""
-    
-    # 用于控制打印格式
-    print("LLM Output: ", end="", flush=True)
-    
-    # 逐块处理流式响应
-    for chunk in response:
-        # 首先检查choices列表是否非空
-        if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
-            # 然后检查是否有delta和content
-            if hasattr(chunk.choices[0], 'delta') and hasattr(chunk.choices[0].delta, 'content'):
-                content = chunk.choices[0].delta.content
-                if content:
-                    print(content, end="", flush=True)
-                    full_response += content
-    
-    # 输出完成后换行
-    print()
-    
-    return full_response
+    try:
+        # 使用stream=True启用流式输出
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            temperature=temperature,
+            stream=True
+        )
+
+        # 用于累积完整响应
+        full_response = ""
+
+        # 用于控制打印格式
+        print("LLM Output: ", end="", flush=True)
+
+        # 逐块处理流式响应
+        for chunk in response:
+            # 检查是否有 choices
+            if not chunk.choices:
+                continue
+
+            delta = chunk.choices[0].delta
+
+            # 1. 优先尝试获取 reasoning_content (推理模型的思考过程)
+            # 注意：不同版本的 SDK 或 API，字段可能叫 reasoning_content
+            reasoning = getattr(delta, 'reasoning_content', None)
+            if reasoning:
+                # 可以选择用灰色打印思考过程，或者直接打印
+                print(reasoning, end="", flush=True)
+
+            # 2. 获取正常的 content (最终回复)
+            content = getattr(delta, 'content', None)
+            if content:
+                print(content, end="", flush=True)
+                full_response += content
+
+        # 输出完成后换行
+        print()
+        return full_response
+
+    except Exception as e:
+        print(f"\n[API Error] 调用出错: {e}")
+        # 如果流式失败，返回空字符串以免后续逻辑崩溃
+        return ""
 
 def generate_or_code_solver(messages_bak, model_name, max_attempts):
     messages = copy.deepcopy(messages_bak)
@@ -213,7 +278,7 @@ def generate_or_code_solver(messages_bak, model_name, max_attempts):
     return False, None, messages_bak
 
 
-def or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
+def or_llm_agent(user_question, model_name="ep-20251202173916-9j664", max_attempts=3):
     """
     向 LLM 请求 Gurobi 代码解决方案并执行，如果失败则尝试修复。
 
@@ -284,19 +349,55 @@ def or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
     return is_solve_success, result
 
 
+def load_dataset(data_path):
+    """
+    Load dataset from either JSONL format (IndustryOR.json, BWOR.json) or regular JSON format
+    """
+    dataset = {}
+
+    with open(data_path, 'r', encoding='utf-8') as f:
+        # Try to detect format by reading first line
+        first_line = f.readline().strip()
+        f.seek(0)  # Reset file pointer
+
+        if first_line.startswith('{"en_question"') or first_line.startswith('{"cn_question"'):
+            # JSONL format (IndustryOR.json, BWOR.json)
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if line:
+                    try:
+                        item = json.loads(line)
+                        # Convert to expected format
+                        dataset_item = {
+                            'question': item.get('en_question', item.get('cn_question', '')),
+                            'answer': item.get('en_answer', item.get('cn_answer', '')),
+                            'difficulty': item.get('difficulty', 'Unknown'),
+                            'id': item.get('id', line_num - 1)
+                        }
+                        # Use id as string key
+                        dataset[str(dataset_item['id'])] = dataset_item
+                    except json.JSONDecodeError as e:
+                        print(f"Warning: Could not parse line {line_num}: {line}")
+                        continue
+        else:
+            # Regular JSON format (legacy)
+            dataset = json.load(f)
+
+    return dataset
+
 
 if __name__ == "__main__":
     # Import the load_dataset function from the async script
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from or_llm_eval_async_resilient import load_dataset
+
     
     dataset = load_dataset('data/datasets/IndustryOR.json')
     # print(dataset['0'])
     console = Console()
 
-    model_name = 'o3-mini'
+    model_name = 'ep-20251202173916-9j664'
     # model_name = ''
 
     # model_name = 'Pro/deepseek-ai/DeepSeek-R1' 

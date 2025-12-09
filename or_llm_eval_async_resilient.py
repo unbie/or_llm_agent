@@ -77,7 +77,7 @@ anthropic_client = anthropic.AsyncAnthropic(
     api_key=anthropic_api_data['api_key']
 )
 
-async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_attempts=3):
+async def async_query_llm(messages, model_name="ep-20251202173916-9j664", temperature=0.2, max_attempts=3):
     """
     Async version of query_llm that supports both OpenAI and Claude models with retry functionality.
     Returns (success, result) tuple instead of raising exceptions after max attempts.
@@ -216,7 +216,7 @@ async def async_extract_and_execute_python_code(text_content):
 
     return False, "No valid code blocks executed"
 
-async def async_generate_math_model(user_question, model_name="o3-mini"):
+async def async_generate_math_model(user_question, model_name="ep-20251202173916-9j664"):
     """
     Generate mathematical model from user question
     """
@@ -233,7 +233,7 @@ async def async_generate_math_model(user_question, model_name="o3-mini"):
     #print("【数学模型】:\n", math_model)
     return True, math_model
 
-async def async_generate_and_run_gurobi_code(user_question, model_name="o3-mini", math_model=None, enable_debug=False, max_attempts=3):
+async def async_generate_and_run_gurobi_code(user_question, model_name="ep-20251202173916-9j664", math_model=None, enable_debug=False, max_attempts=3):
     """
     Generate Gurobi code either from user question directly or with math model
     """
@@ -299,7 +299,7 @@ async def async_generate_or_code_solver(messages, model_name, max_attempts):
     print(f"达到最大尝试次数 ({max_attempts})，未能成功执行代码。")
     return False, error_msg, executed_content
 
-async def async_or_llm_agent(user_question, model_name="o3-mini", use_math_model=False, enable_debug=False, max_attempts=3):
+async def async_or_llm_agent(user_question, model_name="ep-20251202173916-9j664", use_math_model=False, enable_debug=False, max_attempts=3):
     """
     Main agent function that orchestrates math model generation and code generation
     """
@@ -393,7 +393,7 @@ def parse_args():
                         help='Generate mathematical model first, then use it to guide code generation')
     parser.add_argument('--debug', action='store_true',
                         help='Enable debugging mode with multiple attempts to fix code errors')
-    parser.add_argument('--model', type=str, default='o3-mini',
+    parser.add_argument('--model', type=str, default='ep-20251202173916-9j664',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
     parser.add_argument('--data_path', type=str, default='data/datasets/IndustryOR.json',
                         help='Path to the dataset JSON file (supports both JSONL and regular JSON formats)')
