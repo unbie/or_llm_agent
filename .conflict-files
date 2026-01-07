@@ -1,0 +1,3 @@
+ancestorEntries = []
+ourEntries = ["heuristic_prompts.py", "llm_heuristic.py"]
+theirEntries = ["heuristic_prompts.py", "llm_heuristic.py"]
