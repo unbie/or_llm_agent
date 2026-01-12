@@ -27,6 +27,7 @@ class HeuristicSolver:
         self.plugin.dist_matrix = self.dist_matrix
 
     def construct_initial_solution(self):
+
         solution = []
         for c in self.customers:
             cid = c['id']

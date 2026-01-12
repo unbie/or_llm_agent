@@ -283,40 +283,171 @@ def query_llm(messages, model_name="ep-20260106214023-k4p8b", temperature=0.2):
 #
 
 
+# def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
+#     messages = copy.deepcopy(messages_bak)
+#     print_header("LLM生成启发式插件代码")
+#
+#     # 生成插件代码
+#     data_str_pretty = json.dumps(data, ensure_ascii=False, indent=2)
+#     messages.append({
+#         "role": "user",
+#         "content": (
+#             "请基于以下数据结构生成完整可执行的 Python 启发式插件类，只填写 HeuristicPlugin 类中的TODO，"
+#             "不要修改类名、方法名或签名，不要输出解释，只输出代码块。\n\n"
+#             f"数据示例:\n{data_str_pretty}\n\n"
+#             f"{HEURISTIC_PLUGIN_TEMPLATE}"
+#         )
+#     })
+#
+#     plugin_response = query_llm(messages, model_name)
+#
+#     # --- 修改点 1: 正则提取 LLM 返回的纯代码块，剔除解释文字 ---
+#     # 查找 ```python ... ``` 之间的内容
+#     code_match = re.search(r"```python\n(.*?)```", plugin_response, re.DOTALL)
+#     if code_match:
+#         clean_plugin_code = code_match.group(1).strip()
+#     else:
+#         # 容错：如果没有标记，尝试简单清理标记
+#         clean_plugin_code = re.sub(r'```python\n?|```', '', plugin_response).strip()
+#
+#     print_header("拼接骨架与插件，准备执行")
+#     data_str = json.dumps(data, ensure_ascii=False)
+#
+#     attempt = 0
+#     while attempt < max_attempts:
+#         # --- 修改点 2: 使用 clean_plugin_code 拼接，并确保 print 格式与 extract_best_objective 匹配 ---
+#         # 如果你的 utils.extract_best_objective 寻找的是 "Best Objective:"，请修改下面的 print
+#         full_code_content = f"""
+# {HEURISTIC_SKELETON}
+#
+# {clean_plugin_code}
+#
+# # ====== 数据 & 执行 ======
+# data = {data_str}
+# try:
+#     plugin = HeuristicPlugin(data)
+#     solver = HeuristicSolver(data, plugin)
+#
+#     # 按照 AFL 架构执行
+#     best_sol, best_cost = solver.solve(max_iters=200)
+#
+#     # 显式打印标记，确保工具能捕获到值
+#     print(f"BEST_COST: {{best_cost}}")
+#     print(f"BEST_SOLUTION: {{best_sol}}")
+#     # 如果 utils.extract_best_objective 寻找的是 "Best Objective:"，请多打一行：
+#     print(f"Best Objective: {{best_cost}}")
+# except Exception as e:
+#     print(f"EXECUTION_ERROR: {{str(e)}}")
+# """
+#
+#         # --- 修改点 3: 将整个拼接后的脚本包裹在 Markdown 标记中 ---
+#         final_executable_text = f"```python\n{full_code_content}\n```"
+#
+#         print_header(f"执行启发式算法（尝试 {attempt + 1}/{max_attempts}）")
+#         buffer = io.StringIO()
+#         with redirect_stdout(buffer):
+#             success, error_msg = extract_and_execute_python_code(final_executable_text)
+#
+#         captured_output = buffer.getvalue()
+#         print(captured_output)
+#
+#         # 检查是否成功输出了成本
+#         if success and "BEST_COST:" in captured_output:
+#             messages_bak.append({"role": "assistant", "content": plugin_response})
+#             return True, captured_output, messages_bak
+#
+#         # --- 修改点 4: 增强纠错提示（借鉴 AFL 的 EAA 机制） ---
+#         print(f"第 {attempt + 1} 次执行失败或未捕获到结果，尝试修复...")
+#         messages.append({"role": "assistant", "content": plugin_response})
+#         messages.append({"role": "user", "content": (
+#             f"代码运行结果异常或报错：\n{error_msg if not success else captured_output}\n"
+#             "请检查 HeuristicPlugin 的逻辑实现（特别是成本计算和算子），确保其能够正常输出 BEST_COST。"
+#         )})
+#         plugin_response = query_llm(messages, model_name)
+#         code_match = re.search(r"```python\n(.*?)```", plugin_response, re.DOTALL)
+#         clean_plugin_code = code_match.group(1).strip() if code_match else plugin_response
+#         attempt += 1
+#
+#     return False, None, messages_bak
+
 def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
+    """
+    Generate VRPTW heuristic prompt with perishable logistics defaults and explicit TODO_checklist.
+    """
     messages = copy.deepcopy(messages_bak)
 
-    # 1. 【动态描述】自动分析数据结构，而不是硬编码键名
-    # 获取第一个客户节点的样本，以此展示数据格式
-    customer_sample = data['customers'][0] if data['customers'] else {}
+    # 1) Dynamic schema extraction
+    customer_sample = data['customers'][0] if data.get('customers') else {}
     data_schema = {k: type(v).__name__ for k, v in customer_sample.items()}
 
-    print_header(f"LLM 启发式生成 - 动态数据适配模式")
+    print_header("LLM 启发式生成 - 动态数据适配模式")
 
-    # 2. 构造通用的 Prompt
-    # 我们不再说“不要用 time_window”，而是说“请严格参考以下 Schema”
+    # 2) Domain defaults for fresh logistics
+    domain_defaults = {
+        "initial_freshness": 0.98,          # ri'0
+        "theta_transport": 0.002,           # θ1
+        "theta_service": 0.005,             # θ2
+        "product_price_per_ton": 5000,      # p
+        "cooling_cost_per_hour": 15,        # Ct
+        "early_penalty_per_hour": 20,       # Z1
+        "late_penalty_per_hour": 40,        # Z2
+        "customer_loss_range": [0, 0.02],   # δ1
+        "supplier_loss_range": [0, 0.05],   # δ2
+        "vehicle_speed_kmph": 40,           # v
+        "vehicle_fixed_cost": 240,          # f
+        "vehicle_distance_cost_per_km": 3   # c
+    }
+
+    # 3) Cost guidance text (for LLM)
+    cost_guidance = (
+        "Cost components to implement in TODOs:\n"
+        "1) Vehicle fixed cost C11 = sum_k x_k * f (default f=240).\n"
+        "2) Distance cost C12 = sum_{k,i,j} c * d_ij * x_ijk (default c=3).\n"
+        "3) Cooling cost C13 = sum_{k,i,j} (Ct/v) * d_ij * x_ijk (Ct=15, v=40).\n"
+        "4) Freshness decay: theta_transport=0.002, theta_service=0.005.\n"
+        "5) Loss costs: delivery loss > delta1 (default [0,0.02]) costs p*D_i*excess; "
+        "return loss > delta2 (default [0,0.05]) costs p*P_i*excess; p=5000.\n"
+        "6) Time penalties: early Z1=20 per hour, late Z2=40 per hour (soft windows).\n"
+        "Use defaults when fields are missing; otherwise read from data['customers'][i]."
+    )
+
+    # 4) TODO_LIST
+    todo_checklist = (
+        "TODOs inside HeuristicPlugin (no TODO left):\n"
+        "- Implement random_removal (robust sampling across routes).\n"
+        "- Implement worst_removal (highest marginal cost/time-window risk).\n"
+        "- Implement greedy_insert (regret/cheapest hybrid honoring feasibility & cost).\n"
+        "- Ensure iteration over range(1, len(data['customers'])) when applicable.\n"
+        "- Final prints must include BEST_COST and BEST_SOLUTION."
+    )
+
+    # 5) Prompt construction
     prompt = (
         "请编写一个完整的 Python 脚本来解决 VRPTW 问题。请严格基于提供的骨架进行补全。\n\n"
         "### 1. 运行环境与注入：\n"
         "- 代码第一行必须是：# -*- coding: utf-8 -*-\n"
         "- 全局变量 `data` 已注入。`data['customers']` 包含所有节点。\n\n"
         "### 2. 动态数据结构参考 (Data Schema)：\n"
-        f"每个客户节点（customer node）的键值对结构如下，请在编写逻辑时准确引用这些键：\n"
         f"{json.dumps(customer_sample, indent=2, ensure_ascii=False)}\n"
         f"对应数据类型参考: {data_schema}\n\n"
-        "### 3. 任务要求：\n"
+        "### 3. 生鲜物流默认参数：\n"
+        f"{json.dumps(domain_defaults, indent=2, ensure_ascii=False)}\n\n"
+        "### 4. 成本/衰减指导：\n"
+        f"{cost_guidance}\n\n"
+        "### 5. 任务要求：\n"
         f"请补全 `HeuristicPlugin` 类中的所有 TODO：\n"
         f"{HEURISTIC_PLUGIN_TEMPLATE}\n\n"
-        "### 4. 编写指南：\n"
-        "- **强制排序插入 (EDD)**：在 `greedy_insert` 中，**必须**先将 `removed_nodes` 按其 `due_date` 升序排列。\n"
-        "- **彻底清理空路径**：在破坏算子（removal）移除节点后，如果路径只剩下仓库 `[0, 0]`，**必须立即丢弃该路径**。\n"
+        "### 6. TODO 清单：\n"
+        f"{todo_checklist}\n"
+        "### 7. 编写指南：\n"
         "- 必须遍历 `range(1, len(data['customers']))` 以处理所有客户。\n"
+        "- 严禁使用中文字符，结尾打印 'BEST_COST' 和 'BEST_SOLUTION'。\n"
         "仅输出类代码块，包裹在 ```python ... ``` 中。"
     )
 
     messages.append({"role": "user", "content": prompt})
 
-    # 3. 自动注入代码逻辑（保持不变）
+    # 6) Inject data and run
     full_data_json = json.dumps(data, ensure_ascii=True)
     full_data_code = f"data = {full_data_json}"
 
@@ -326,7 +457,6 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
         code_match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
         llm_plugin_code = code_match.group(1).strip() if code_match else llm_response
 
-        # 拼接最终执行脚本
         final_code_to_run = (
             "# -*- coding: utf-8 -*-\n"
             "import math, json, random, copy, time\n\n"
@@ -341,7 +471,6 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
-            # 捕获异常并打印详细 traceback，让 LLM 自己看哪里错了
             "        import traceback\n"
             "        traceback.print_exc()\n"
         )
@@ -353,19 +482,18 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             messages_bak.append({"role": "assistant", "content": llm_response})
             return True, result_msg, messages_bak
 
-        # 4. 【通用反馈】不再硬编码错误提示，而是直接把 Traceback 喂给 LLM
-        print(f"\n[执行失败] 正在将错误堆栈反馈给 LLM...\n")
+        print("\n[执行失败] 正在将错误堆栈反馈给 LLM...\n")
         feedback = (
-            f"执行过程中出现错误。请阅读以下 Traceback 并参考前述 Schema 进行修正：\n"
+            "执行过程中出现错误。请阅读以下 Traceback 并参考前述 Schema/默认参数进行修正：\n"
             f"```\n{result_msg}\n```\n"
-            "请重新检查你对 data['customers'] 属性的访问是否正确。"
+            "请重新检查对 data['customers'] 的访问，并确保所有 TODO 已完成。"
         )
-
         messages.append({"role": "assistant", "content": llm_response})
         messages.append({"role": "user", "content": feedback})
         attempt += 1
 
     return False, None, messages_bak
+
 
 # def or_llm_agent(user_question, model_name="ep-20251202173916-9j664", max_attempts=3):
 #     """
@@ -437,88 +565,101 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
 #
 #     return is_solve_success, result
 #
-def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
-    messages = copy.deepcopy(messages_bak)
+def or_llm_heuristic_agent(
+    user_question,
+    model_name="ep-20260106214023-k4p8b",
+    max_generations=3,
+    inner_iters=100
+):
+    """
+    LLM + 启发式算法（AFL）
+    返回：best_cost, best_solution
+    """
 
-    # 1. 【动态描述】自动分析数据结构，而不是硬编码键名
-    # 获取第一个客户节点的样本，以此展示数据格式
-    customer_sample = data['customers'][0] if data['customers'] else {}
-    data_schema = {k: type(v).__name__ for k, v in customer_sample.items()}
+    # ========= Stage 1: 语义化问题建模（非 LP） =========
+    messages = [
+        {"role": "system", "content": (
+            "你是一名运筹优化与启发式算法专家。"
+            "请从用户描述中抽取："
+            "1. 决策对象（路径/车辆/订单）；"
+            "2. 核心约束（时间窗、容量、生鲜时效）；"
+            "3. 成本构成（距离 + 生鲜损耗）。"
+            "你的输出将用于设计启发式算法，而不是精确求解。"
+        )},
+        {"role": "user", "content": user_question}
+    ]
 
-    print_header(f"LLM 启发式生成")
+    print_header("LLM解析问题语义（用于启发式）")
+    problem_semantics = query_llm(messages, model_name)
 
-    # 2. 构造通用的 Prompt
-    prompt = (
-        "请编写一个完整的 Python 脚本来解决 VRPTW 问题。请严格基于提供的骨架进行补全。\n\n"
-        "### 1. 运行环境与注入：\n"
-        "- 代码第一行必须是：# -*- coding: utf-8 -*-\n"
-        "- 全局变量 `data` 已注入。`data['customers']` 包含所有节点。\n\n"
-        "### 2. 动态数据结构参考 (Data Schema)：\n"
-        f"每个客户节点（customer node）的键值对结构如下，请在编写逻辑时准确引用这些键：\n"
-        f"{json.dumps(customer_sample, indent=2, ensure_ascii=False)}\n"
-        f"对应数据类型参考: {data_schema}\n\n"
-        "### 3. 任务要求：\n"
-        f"请补全 `HeuristicPlugin` 类中的所有 TODO：\n"
-        f"{HEURISTIC_PLUGIN_TEMPLATE}\n\n"
-        "### 4. 编写指南：\n"
-        "- 必须遍历 `range(1, len(data['customers']))` 以处理所有客户。\n"
-        "- 严禁使用中文字符，结尾打印 'BEST_COST' 和 'BEST_SOLUTION'。\n"
-        "仅输出类代码块，包裹在 ```python ... ``` 中。"
-    )
+    # ========= Stage 2: 生成启发式插件 =========
+    messages.append({"role": "assistant", "content": problem_semantics})
+    messages.append({"role": "user", "content": (
+        "请基于以上问题语义，生成一个 Python 启发式算法插件类，要求：\n"
+        "1.请基于上述生鲜 VRPTW 建模，只填写下面这个启发式插件类，"
+        "2.不要修改类名、方法名或函数签名。"
+        "3. 不要输出任何解释，只输出 Python 代码。\n\n"
+        f"{HEURISTIC_PLUGIN_TEMPLATE}"
+    )})
 
-    messages.append({"role": "user", "content": prompt})
+    print_header("LLM生成启发式算法插件")
+    plugin_code = query_llm(messages, model_name)
 
-    # 3. 自动注入代码逻辑（保持不变）
-    full_data_json = json.dumps(data, ensure_ascii=True)
-    full_data_code = f"data = {full_data_json}"
+    # ========= Stage 3: 执行 & 演化 =========
+    print_header("执行启发式搜索")
 
-    attempt = 0
-    while attempt < max_attempts:
-        llm_response = query_llm(messages, model_name)
-        code_match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
-        llm_plugin_code = code_match.group(1).strip() if code_match else llm_response
+    best_cost = float("inf")
+    best_solution = None
 
-        # 拼接最终执行脚本
-        final_code_to_run = (
-            "# -*- coding: utf-8 -*-\n"
-            "import math, json, random, copy, time\n\n"
-            f"{full_data_code}\n\n"
-            f"{HEURISTIC_SKELETON}\n\n"
-            f"{llm_plugin_code}\n\n"
-            "if __name__ == '__main__':\n"
-            "    try:\n"
-            "        plugin = HeuristicPlugin(data)\n"
-            "        solver = HeuristicSolver(data, plugin)\n"
-            "        best_sol, best_cost = solver.solve(max_iters=200)\n"
-            "        print(f'BEST_COST: {best_cost}')\n"
-            "        print(f'BEST_SOLUTION: {best_sol}')\n"
-            "    except Exception as e:\n"
-            # 捕获异常并打印详细 traceback，让 LLM 自己看哪里错了
-            "        import traceback\n"
-            "        traceback.print_exc()\n"
-        )
+    text = plugin_code
 
-        formatted_for_exec = f"```python\n{final_code_to_run}\n```"
-        success, result_msg = extract_and_execute_python_code(formatted_for_exec)
+    for gen in range(max_generations):
+        print(f"\n--- Generation {gen + 1}/{max_generations} ---\n")
 
-        if success and "BEST_COST:" in result_msg:
-            messages_bak.append({"role": "assistant", "content": llm_response})
-            return True, result_msg, messages_bak
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            success, result = extract_and_execute_python_code(text)
 
-        # 4. 【通用反馈】不再硬编码错误提示，而是直接把 Traceback 喂给 LLM
-        print(f"\n[执行失败] 正在将错误堆栈反馈给 LLM...\n")
-        feedback = (
-            f"执行过程中出现错误。请阅读以下 Traceback 并参考前述 Schema 进行修正：\n"
-            f"```\n{result_msg}\n```\n"
-            "请重新检查你对 data['customers'] 属性的访问是否正确。"
-        )
+        output = buffer.getvalue()
+        print(output)
 
-        messages.append({"role": "assistant", "content": llm_response})
-        messages.append({"role": "user", "content": feedback})
-        attempt += 1
+        if not success:
+            print("代码执行失败，进入修复阶段")
 
-    return False, None, messages_bak
+            messages.append({"role": "assistant", "content": plugin_code})
+            messages.append({"role": "user", "content": (
+                f"代码运行出错，错误信息如下：\n{result}\n"
+                "请修复代码并重新输出完整启发式插件代码。"
+            )})
 
+            plugin_code = query_llm(messages, model_name)
+            text = plugin_code
+            continue
+
+        # ========= 解析结果 =========
+        # 约定：插件在 main 中 print 两行：
+        # BEST_COST: xxx
+        # BEST_SOLUTION: xxx
+        cost = extract_best_objective(output)
+
+        if is_number_string(cost):
+            cost = float(cost)
+            if cost < best_cost:
+                best_cost = cost
+                best_solution = output
+
+        # ========= 反射进化（ReEvo） =========
+        messages.append({"role": "assistant", "content": plugin_code})
+        messages.append({"role": "user", "content": (
+            f"当前启发式算法运行完成，总成本为 {cost}。\n"
+            "请分析该策略的不足，并改进 destroy / insert 逻辑，"
+            "使其更加优先配送高价值、易腐坏的生鲜订单。"
+        )})
+
+        plugin_code = query_llm(messages, model_name)
+        text = plugin_code
+
+    return best_cost, best_solution
 
 #
 #
@@ -579,8 +720,7 @@ def load_solomon_data(file_path):
     # 先提取车辆容量
     for idx, line in enumerate(lines):
         line = line.strip()
-        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith(
-                "NUMBER") or line.startswith("CUSTOMER"):
+        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith("NUMBER") or line.startswith("CUSTOMER"):
             continue
         parts = line.split()
         # 第一个找到的行，车辆信息行
@@ -594,8 +734,7 @@ def load_solomon_data(file_path):
     # 提取客户数据：行首是数字且长度>=7
     for line in lines:
         line = line.strip()
-        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith(
-                "NUMBER") or line.startswith("CUSTOMER") or line.startswith("CUST"):
+        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith("NUMBER") or line.startswith("CUSTOMER") or line.startswith("CUST"):
             continue
         parts = line.split()
         if parts[0].isdigit() and len(parts) >= 7:

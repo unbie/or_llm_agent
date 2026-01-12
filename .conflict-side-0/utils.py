@@ -105,12 +105,12 @@ def extract_and_execute_python_code(text_content):
                 print("Python code executed successfully, output:\n")
                 print(result.stdout)
                 
-                best_obj = extract_best_objective(result.stdout)
-                if best_obj is not None:
-                    print(f"\nOptimal solution value (Best objective): {best_obj}")
-                else:
-                    print("\nOptimal solution value not found")
-                return True, str(best_obj)
+                # best_obj = extract_best_objective(result.stdout)
+                # if best_obj is not None:
+                #     print(f"\nOptimal solution value (Best objective): {best_obj}")
+                # else:
+                #     print("\nOptimal solution value not found")
+                # return True, result.stdout
             else:
                 print(f"Python code execution error, error message:\n")
                 print(result.stderr)

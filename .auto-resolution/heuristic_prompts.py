@@ -109,9 +109,18 @@ class HeuristicPlugin:
     # ALNS 核心接口
     # ==========================
     def destroy(self, solution, remove_ratio=0.2):
+        
+        # 破坏算子：移除部分节点。
+        # 返回: (partial_solution, removed_nodes)
+        # 注意:
+        # 1.不要移除节点
+        # 2. 如果某路径移除节点后只剩[0, 0]，应将其从解中删除。
+        
         solution = copy.deepcopy(solution)
         self.last_d_idx = random.choices(range(len(self.destroy_ops)), weights=self.d_weights)[0]
         op = self.destroy_ops[self.last_d_idx]
+
+        # 执行具体算子逻辑
         return op(solution, remove_ratio)
 
     def insert(self, solution, removed_nodes):
@@ -119,7 +128,7 @@ class HeuristicPlugin:
         self.last_i_idx = random.choices(range(len(self.insert_ops)), weights=self.i_weights)[0]
         op = self.insert_ops[self.last_i_idx]
         return op(solution, removed_nodes)
-
+    
     def update_weights(self, reward):
         self.d_weights[self.last_d_idx] = self.d_weights[self.last_d_idx]*(1-self.rho) + reward*self.rho
         self.i_weights[self.last_i_idx] = self.i_weights[self.last_i_idx]*(1-self.rho) + reward*self.rho
@@ -139,7 +148,7 @@ class HeuristicPlugin:
                     route.remove(c)
         solution = [r for r in solution if len(r) > 2]
         return solution, removed
-
+    
     def worst_removal(self, solution, ratio):
         # TODO: Implement worst removal based on time window urgency
         removal_costs = []

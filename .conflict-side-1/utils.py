@@ -70,6 +70,73 @@ def extract_best_objective(output_text):
     
     return None
 
+# def extract_and_execute_python_code(text_content):
+#     """
+#     Extract Python code blocks from text and execute them.
+#
+#     Args:
+#         text_content: Text content containing code blocks.
+#
+#     Returns:
+#         bool: True if execution was successful, False otherwise
+#         str: Error message if execution failed, best objective if successful
+#     """
+#     python_code_blocks = re.findall(r'```python\s*([\s\S]*?)```', text_content)
+#
+#     if not python_code_blocks:
+#         print("No Python code blocks found.")
+#         return False, "No Python code blocks found"
+#
+#     for code_block in python_code_blocks:
+#         code_block = code_block.strip()
+#         if not code_block:
+#             print("Found an empty Python code block, skipped.")
+#             continue
+#
+#         print("Found Python code block, starting execution...")
+#         try:
+#             with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
+#                 tmp_file.write(code_block)
+#                 temp_file_path = tmp_file.name
+#
+#             result = subprocess.run([sys.executable, temp_file_path], capture_output=True, text=True, check=False)
+#
+#             if result.returncode == 0:
+#                 print("Python code executed successfully, output:\n")
+#                 print(result.stdout)
+#
+#                 # best_obj = extract_best_objective(result.stdout)
+#                 # if best_obj is not None:
+#                 #     print(f"\nOptimal solution value (Best objective): {best_obj}")
+#                 # else:
+#                 #     print("\nOptimal solution value not found")
+#                 # return True, result.stdout
+#
+#                 if result.returncode == 0:
+#                     print("Python code executed successfully.")
+#                     # 这里是关键：在返回前尝试提取 objective 值
+#                     best_obj = extract_best_objective(result.stdout)
+#                     if best_obj is not None:
+#                         # 如果提取到了数字，直接返回这个数字的字符串，方便后续 eval_model_result
+#                         return True, str(best_obj)
+#                     else:
+#                         # 如果没提取到数字但运行成功，返回原始输出
+#                         return True, result.stdout
+#
+#             else:
+#                 print(f"Python code execution error, error message:\n")
+#                 print(result.stderr)
+#                 return False, result.stderr
+#
+#         except Exception as e:
+#             print(f"Error occurred while executing Python code block: {e}")
+#             return False, str(e)
+#         finally:
+#             if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+#                 os.remove(temp_file_path)
+#         print("-" * 30)
+#
+#     return False, "No valid code blocks executed"
 def extract_and_execute_python_code(text_content):
     """
     Extract Python code blocks from text and execute them.
@@ -84,45 +151,43 @@ def extract_and_execute_python_code(text_content):
     python_code_blocks = re.findall(r'```python\s*([\s\S]*?)```', text_content)
 
     if not python_code_blocks:
-        print("No Python code blocks found.")
-        return False, "No Python code blocks found"
+        # 增加一个兜底：如果没有 Markdown 标记，尝试执行整个文本（防止 LLM 没带标记）
+        if "import" in text_content and "def" in text_content:
+            python_code_blocks = [text_content]
+        else:
+            return False, "No Python code blocks found"
 
     for code_block in python_code_blocks:
         code_block = code_block.strip()
-        if not code_block:
-            print("Found an empty Python code block, skipped.")
-            continue
+        if not code_block: continue
 
         print("Found Python code block, starting execution...")
+        temp_file_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding='utf-8') as tmp_file:
                 tmp_file.write(code_block)
                 temp_file_path = tmp_file.name
 
             result = subprocess.run([sys.executable, temp_file_path], capture_output=True, text=True, check=False)
 
             if result.returncode == 0:
-                print("Python code executed successfully, output:\n")
-                print(result.stdout)
-                
-                # best_obj = extract_best_objective(result.stdout)
-                # if best_obj is not None:
-                #     print(f"\nOptimal solution value (Best objective): {best_obj}")
-                # else:
-                #     print("\nOptimal solution value not found")
-                # return True, result.stdout
+                print("Python code executed successfully.")
+                # 在返回前尝试提取 objective 值
+                best_obj = extract_best_objective(result.stdout)
+                if best_obj is not None:
+                    # 如果提取到了数字，直接返回这个数字的字符串
+                    return True, str(best_obj)
+                else:
+                    # 如果没提取到数字但运行成功，返回原始输出
+                    return True, result.stdout
             else:
-                print(f"Python code execution error, error message:\n")
-                print(result.stderr)
                 return False, result.stderr
 
         except Exception as e:
-            print(f"Error occurred while executing Python code block: {e}")
             return False, str(e)
         finally:
-            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            if temp_file_path and os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
-        print("-" * 30)
 
     return False, "No valid code blocks executed"
 
