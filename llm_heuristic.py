@@ -188,7 +188,7 @@ def print_header(text="", add_newline_before=True, add_newline_after=True,
 #     print()
 #
 #     return full_response
-def query_llm(messages, model_name="ep-20260106214023-k4p8b", temperature=0.2):
+def query_llm(messages, model_name="ep-20260106214023-k4p8b", temperature=0):
     """
     调用 LLM 获取响应结果，使用流式输出方式。
     兼容推理模型(DeepSeek R1)的 reasoning_content 输出。
@@ -291,7 +291,100 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
     customer_sample = data['customers'][0] if data['customers'] else {}
     data_schema = {k: type(v).__name__ for k, v in customer_sample.items()}
 
-    print_header(f"LLM 启发式生成 - 动态数据适配模式")
+
+    print_header("LLM 启发式生成 - 动态数据适配模式")
+
+    # 2) Domain defaults for fresh logistics
+    domain_defaults = {
+        "initial_freshness": 0.98,  # ri'0
+        "theta_transport": 0.002,  # θ1
+        "theta_service": 0.005,  # θ2
+        "product_price_per_ton": 5000,  # p
+        "cooling_cost_per_hour": 15,  # Ct
+        "early_penalty_per_hour": 20,  # Z1
+        "late_penalty_per_hour": 40,  # Z2
+        "customer_loss_range": [0, 0.02],  # δ1
+        "supplier_loss_range": [0, 0.05],  # δ2
+        "vehicle_speed_kmph": 40,  # v
+        "vehicle_fixed_cost": 240,  # f
+        "vehicle_distance_cost_per_km": 3  # c
+    }
+
+    # 3) Cost guidance text (for LLM)
+    cost_guidance = (
+        "Cost components to implement in TODOs:\n"
+        "1. 单位转换与\n"
+        "   - Solomon 算例时间单位为分钟 (min)，计算制冷成本时需转换为小时: t_hour = t_min / 60。\n"
+        "2. 综合成本组成 (Total Cost = C11 + C12 + C13 + C14): 不考虑货损成本\n"
+        "   - C11 固定成本: 路径总数 * 240 (f=240)。\n"
+        "   - C12 距离成本: 总行驶距离 * 3 (c=3)。\n"
+        "   - C13 制冷成本: 总行驶小时 * 15 (Ct=15)。公式: (总距离 / 40) * 15。\n"
+        "   - C14 时间惩罚: 基于 [E_i, e_i, l_i, L_i] 的软时间窗分段惩罚。\n\n"
+        "3. 软时间窗的时间惩罚 (Time Penalty) 严格执行逻辑：\n"
+        "   - 定义：t=到达时间, [ei, li]=最佳窗口, [Ei, Li]=缓冲窗口。单位均为分钟。\n"
+        "   - 惩罚系数 Z1=20, Z2=40 (此处 Z 代表该缓冲区间允许的最大惩罚值)。\n"
+        "   - 逻辑：\n"
+        "     a) 若 ei <= t <= li: penalty = 0 (无惩罚)\n"
+        "     b) 若 Ei <= t < ei: penalty = 20 * (ei - t) / (ei - Ei + 1e-6) \n"
+        "     c) 若 li < t <= Li: penalty = 40 * (t - li) / (Li - li + 1e-6) \n"
+        "   - 注意：虽然 Z 定义为每小时惩罚，但它作为区间比例的加权系数，直接使用分钟计算比例，无需再除以 60。"
+        # "4. 新鲜度衰减模型 (指数模型):\n"
+        # "   - 到达节点 i 时的新鲜度 q_i = 0.98 * math.exp(-(0.002 * cumulative_drive_hours + 0.005 * cumulative_service_hours))。\n"
+        # "   - 注意：累计服务小时 (cumulative_service_hours) 指到达节点 i 之前所有已完成的服务时间总和。\n"
+        # "   - 交付损失阈值 delta1 = 0.96 (即 0.98 - 0.02)。若 q_i < 0.96, 损失 = (0.96 - q_i) * 5000 * node['demand']。\n\n"
+    )
+
+    # 4) TODO_LIST
+    todo_checklist = (
+        "TODOs inside HeuristicPlugin (no TODO left):\n"
+        "- Implement random_removal (robust sampling across routes).\n"
+        "- Implement worst_removal (highest marginal cost/time-window risk).\n"
+        "- Implement greedy_insert (regret/cheapest hybrid honoring feasibility & cost).\n"
+        "- Ensure iteration over range(1, len(data['customers'])) when applicable.\n"
+        "- Final prints must include BEST_COST and BEST_SOLUTION."
+    )
+
+    print_header("LLM 启发式生成 - 动态数据适配模式")
+
+    # 2) Domain defaults for fresh logistics
+    domain_defaults = {
+        "initial_freshness": 0.98,  # ri'0
+        "theta_transport": 0.002,  # θ1
+        "theta_service": 0.005,  # θ2
+        "product_price_per_ton": 5000,  # p
+        "cooling_cost_per_hour": 15,  # Ct
+        "early_penalty_per_hour": 20,  # Z1
+        "late_penalty_per_hour": 40,  # Z2
+        "customer_loss_range": [0, 0.02],  # δ1
+        "supplier_loss_range": [0, 0.05],  # δ2
+        "vehicle_speed_kmph": 40,  # v
+        "vehicle_fixed_cost": 240,  # f
+        "vehicle_distance_cost_per_km": 3  # c
+    }
+
+    # 3) Cost guidance text (for LLM)
+    cost_guidance = (
+        "Cost components to implement in TODOs:\n"
+        "1) Vehicle fixed cost C11 = sum_k x_k * f (default f=240).\n"
+        "2) Distance cost C12 = sum_{k,i,j} c * d_ij * x_ijk (default c=3).\n"
+        "3) Cooling cost C13 = sum_{k,i,j} (Ct/v) * d_ij * x_ijk (Ct=15, v=40).\n"
+        "4) Freshness decay: theta_transport=0.002, theta_service=0.005.\n"
+        "5) Loss costs: delivery loss > delta1 (default [0,0.02]) costs p*D_i*excess; "
+        "return loss > delta2 (default [0,0.05]) costs p*P_i*excess; p=5000.\n"
+        "6) Time penalties: early Z1=20 per hour, late Z2=40 per hour (soft windows).\n"
+        "Use defaults when fields are missing; otherwise read from data['customers'][i]."
+    )
+
+    # 4) TODO_LIST
+    todo_checklist = (
+        "TODOs inside HeuristicPlugin (no TODO left):\n"
+        "- Implement random_removal (robust sampling across routes).\n"
+        "- Implement worst_removal (highest marginal cost/time-window risk).\n"
+        "- Implement greedy_insert (regret/cheapest hybrid honoring feasibility & cost).\n"
+        "- Ensure iteration over range(1, len(data['customers'])) when applicable.\n"
+        "- Final prints must include BEST_COST and BEST_SOLUTION."
+    )
+
 
     # 2. 构造通用的 Prompt
     # 我们不再说“不要用 time_window”，而是说“请严格参考以下 Schema”
@@ -337,7 +430,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "    try:\n"
             "        plugin = HeuristicPlugin(data)\n"
             "        solver = HeuristicSolver(data, plugin)\n"
-            "        best_sol, best_cost = solver.solve(max_iters=200)\n"
+            "        best_sol, best_cost = solver.solve(max_iters=1500)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -437,88 +530,6 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
 #
 #     return is_solve_success, result
 #
-def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
-    messages = copy.deepcopy(messages_bak)
-
-    # 1. 【动态描述】自动分析数据结构，而不是硬编码键名
-    # 获取第一个客户节点的样本，以此展示数据格式
-    customer_sample = data['customers'][0] if data['customers'] else {}
-    data_schema = {k: type(v).__name__ for k, v in customer_sample.items()}
-
-    print_header(f"LLM 启发式生成")
-
-    # 2. 构造通用的 Prompt
-    prompt = (
-        "请编写一个完整的 Python 脚本来解决 VRPTW 问题。请严格基于提供的骨架进行补全。\n\n"
-        "### 1. 运行环境与注入：\n"
-        "- 代码第一行必须是：# -*- coding: utf-8 -*-\n"
-        "- 全局变量 `data` 已注入。`data['customers']` 包含所有节点。\n\n"
-        "### 2. 动态数据结构参考 (Data Schema)：\n"
-        f"每个客户节点（customer node）的键值对结构如下，请在编写逻辑时准确引用这些键：\n"
-        f"{json.dumps(customer_sample, indent=2, ensure_ascii=False)}\n"
-        f"对应数据类型参考: {data_schema}\n\n"
-        "### 3. 任务要求：\n"
-        f"请补全 `HeuristicPlugin` 类中的所有 TODO：\n"
-        f"{HEURISTIC_PLUGIN_TEMPLATE}\n\n"
-        "### 4. 编写指南：\n"
-        "- 必须遍历 `range(1, len(data['customers']))` 以处理所有客户。\n"
-        "- 严禁使用中文字符，结尾打印 'BEST_COST' 和 'BEST_SOLUTION'。\n"
-        "仅输出类代码块，包裹在 ```python ... ``` 中。"
-    )
-
-    messages.append({"role": "user", "content": prompt})
-
-    # 3. 自动注入代码逻辑（保持不变）
-    full_data_json = json.dumps(data, ensure_ascii=True)
-    full_data_code = f"data = {full_data_json}"
-
-    attempt = 0
-    while attempt < max_attempts:
-        llm_response = query_llm(messages, model_name)
-        code_match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
-        llm_plugin_code = code_match.group(1).strip() if code_match else llm_response
-
-        # 拼接最终执行脚本
-        final_code_to_run = (
-            "# -*- coding: utf-8 -*-\n"
-            "import math, json, random, copy, time\n\n"
-            f"{full_data_code}\n\n"
-            f"{HEURISTIC_SKELETON}\n\n"
-            f"{llm_plugin_code}\n\n"
-            "if __name__ == '__main__':\n"
-            "    try:\n"
-            "        plugin = HeuristicPlugin(data)\n"
-            "        solver = HeuristicSolver(data, plugin)\n"
-            "        best_sol, best_cost = solver.solve(max_iters=200)\n"
-            "        print(f'BEST_COST: {best_cost}')\n"
-            "        print(f'BEST_SOLUTION: {best_sol}')\n"
-            "    except Exception as e:\n"
-            # 捕获异常并打印详细 traceback，让 LLM 自己看哪里错了
-            "        import traceback\n"
-            "        traceback.print_exc()\n"
-        )
-
-        formatted_for_exec = f"```python\n{final_code_to_run}\n```"
-        success, result_msg = extract_and_execute_python_code(formatted_for_exec)
-
-        if success and "BEST_COST:" in result_msg:
-            messages_bak.append({"role": "assistant", "content": llm_response})
-            return True, result_msg, messages_bak
-
-        # 4. 【通用反馈】不再硬编码错误提示，而是直接把 Traceback 喂给 LLM
-        print(f"\n[执行失败] 正在将错误堆栈反馈给 LLM...\n")
-        feedback = (
-            f"执行过程中出现错误。请阅读以下 Traceback 并参考前述 Schema 进行修正：\n"
-            f"```\n{result_msg}\n```\n"
-            "请重新检查你对 data['customers'] 属性的访问是否正确。"
-        )
-
-        messages.append({"role": "assistant", "content": llm_response})
-        messages.append({"role": "user", "content": feedback})
-        attempt += 1
-
-    return False, None, messages_bak
-
 
 #
 #
@@ -679,8 +690,20 @@ if __name__ == "__main__":
     # 指定 Solomon Benchmark 文件路径
     solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\c1\c101.txt"
 
-    # 加载算例数据
-    dataset = load_solomon_data(solomon_file)  # 返回字典格式
+    # 在加载数据后，调用求解器前添加
+    dataset = load_solomon_data(solomon_file)
+
+    # 动态添加软时间窗边界
+    for cust in dataset['customers']:
+        # 设定：极早限度比 ready_time 早 60 分钟，极晚限度比 due_date 晚 120 分钟
+        # 仓库节点 (id=0) 通常不需要惩罚，或者范围设大一点
+        if cust['id'] == 0:
+            cust['E_i'] = 0
+            cust['L_i'] = cust['due_date']
+        else:
+            cust['E_i'] = max(0, cust['ready_time'] - 60)
+            cust['L_i'] = min(dataset['customers'][0]['due_date'], cust['due_date'] + 120)
+
 
     # 打印问题描述
     print_header("生鲜物流问题")

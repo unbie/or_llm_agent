@@ -37,7 +37,7 @@ class HeuristicSolver:
             solution.append([0, cid, 0])
         return solution
 
-    def solve(self, max_iters=200):
+    def solve(self, max_iters=1500):  #迭代次数
         # 1. 生成初始解
         current_solution = self.construct_initial_solution()
         best_solution = copy.deepcopy(current_solution)

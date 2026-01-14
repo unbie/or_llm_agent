@@ -12,6 +12,17 @@ class HeuristicPlugin:
         self.customers = data['customers']
         self.dist_matrix = []  # 由 Solver 注入
 
+<<<<<<< ours
+        self.customer_lookup = {c['id']: c for c in self.customers}
+
+        # ALNS 算子配置
+        # 定义 Destroy 和 Insert 算子方法名
+||||||| ancestor
+        self.customer_lookup = {c['id']: c for c in self.customers}
+        
+        # ALNS 算子配置
+        # 定义 Destroy 和 Insert 算子方法名
+=======
         # ==========================
         # 车辆与成本参数 (基础参数设置)
         # ==========================
@@ -32,6 +43,7 @@ class HeuristicPlugin:
         # ==========================
         # ALNS 算子与权重更新
         # ==========================
+>>>>>>> theirs
         self.destroy_ops = [self.random_removal, self.worst_removal]
         self.insert_ops = [self.greedy_insert]
 
@@ -45,6 +57,17 @@ class HeuristicPlugin:
     # 成本计算 (修复路径遍历逻辑)
     # ==========================
     def cost(self, solution):
+<<<<<<< ours
+
+        total_dist = 0.0
+        # TODO: 遍历所有路径，累加相邻节点间的距离
+        return total_dist
+||||||| ancestor
+        
+        total_dist = 0.0
+        # TODO: 遍历所有路径，累加相邻节点间的距离
+        return total_dist
+=======
         total_cost = 0.0
         for route in solution:
             if len(route) < 3: # 路径必须包含 [0, 客户, 0]
@@ -73,6 +96,7 @@ class HeuristicPlugin:
                     - self.freshness_decay_service * t_service
                 )
                 r_i = max(r_i, 0.0)
+>>>>>>> theirs
 
                 delta1 = cust.get('customer_delta', 0.02)
                 delta2 = cust.get('supplier_delta', 0.05)
@@ -109,13 +133,13 @@ class HeuristicPlugin:
     # ALNS 核心接口
     # ==========================
     def destroy(self, solution, remove_ratio=0.2):
-        
+
         # 破坏算子：移除部分节点。
         # 返回: (partial_solution, removed_nodes)
         # 注意:
-        # 1.不要移除节点
+        # 1.不要移除仓库节点
         # 2. 如果某路径移除节点后只剩[0, 0]，应将其从解中删除。
-        
+
         solution = copy.deepcopy(solution)
         self.last_d_idx = random.choices(range(len(self.destroy_ops)), weights=self.d_weights)[0]
         op = self.destroy_ops[self.last_d_idx]
@@ -123,19 +147,87 @@ class HeuristicPlugin:
         # 执行具体算子逻辑
         return op(solution, remove_ratio)
 
+<<<<<<< ours
+    def insert(self, partial_solution, removed_nodes):
+
+        # 修复算子：将移除的节点重新插入。
+        # 返回: new_solution
+        # 注意:
+        # 1.尝试插入到现有路径的合法位置(0和0之间)。
+        # 2.如果无法插入，创建新路径[0, node, 0]。
+        # 
+        partial_solution = copy.deepcopy(partial_solution)
+        # 轮盘赌选择算子
+||||||| ancestor
+    def insert(self, partial_solution, removed_nodes):
+        
+        # 修复算子：将移除的节点重新插入。
+        # 返回: new_solution
+        # 注意:
+        # 1.尝试插入到现有路径的合法位置(0和0之间)。
+        # 2.如果无法插入，创建新路径[0, node, 0]。
+        # 
+        partial_solution = copy.deepcopy(partial_solution)
+        # 轮盘赌选择算子
+=======
     def insert(self, solution, removed_nodes):
         solution = copy.deepcopy(solution)
+>>>>>>> theirs
         self.last_i_idx = random.choices(range(len(self.insert_ops)), weights=self.i_weights)[0]
         op = self.insert_ops[self.last_i_idx]
+<<<<<<< ours
+
+        return op(partial_solution, removed_nodes)
+
+||||||| ancestor
+        
+        return op(partial_solution, removed_nodes)
+    
+=======
         return op(solution, removed_nodes)
     
+>>>>>>> theirs
     def update_weights(self, reward):
+<<<<<<< ours
+
+        # 根据Solver传回的reward更新最近一次使用的算子权重
+
+        # 更新 Destroy 权重
+        w_d = self.d_weights[self.last_d_idx]
+        self.d_weights[self.last_d_idx] = w_d * (1 - self.rho) + reward * self.rho
+
+        # 更新 Insert 权重
+        w_i = self.i_weights[self.last_i_idx]
+        self.i_weights[self.last_i_idx] = w_i * (1 - self.rho) + reward * self.rho
+
+    # ============================================
+    # TODO: 请在下方实现具体的 Destroy 和 Insert 算子
+    # ============================================
+
+||||||| ancestor
+        
+        # 根据Solver传回的reward更新最近一次使用的算子权重
+        
+        # 更新 Destroy 权重
+        w_d = self.d_weights[self.last_d_idx]
+        self.d_weights[self.last_d_idx] = w_d * (1 - self.rho) + reward * self.rho
+        
+        # 更新 Insert 权重
+        w_i = self.i_weights[self.last_i_idx]
+        self.i_weights[self.last_i_idx] = w_i * (1 - self.rho) + reward * self.rho
+        
+    # ============================================
+    # TODO: 请在下方实现具体的 Destroy 和 Insert 算子
+    # ============================================
+    
+=======
         self.d_weights[self.last_d_idx] = self.d_weights[self.last_d_idx]*(1-self.rho) + reward*self.rho
         self.i_weights[self.last_i_idx] = self.i_weights[self.last_i_idx]*(1-self.rho) + reward*self.rho
 
     # ==========================
     # Destroy operators
     # ==========================
+>>>>>>> theirs
     def random_removal(self, solution, ratio):
         # TODO: Implement optimized random removal strategy
         removed = []
@@ -148,7 +240,7 @@ class HeuristicPlugin:
                     route.remove(c)
         solution = [r for r in solution if len(r) > 2]
         return solution, removed
-    
+
     def worst_removal(self, solution, ratio):
         # TODO: Implement worst removal based on time window urgency
         removal_costs = []
@@ -171,11 +263,23 @@ class HeuristicPlugin:
                     route.remove(c)
         solution = [r for r in solution if len(r) > 2]
         return solution, removed
+<<<<<<< ours
+
+||||||| ancestor
+        
+=======
 
     # ==========================
     # Insert operator
     # ==========================
+>>>>>>> theirs
     def greedy_insert(self, solution, removed_nodes):
+<<<<<<< ours
+    # TODO: 贪婪插入逻辑
+||||||| ancestor
+    # TODO: 贪婪插入逻辑
+    # 必须检查容量和时间窗约束 (check_feasible)
+=======
         # TODO: Implement greedy insertion strategy
         removed_nodes_sorted = sorted(
             removed_nodes,
@@ -198,7 +302,13 @@ class HeuristicPlugin:
                 solution[best_route].insert(best_pos, node)
             else:
                 solution.append([0, node, 0])
+>>>>>>> theirs
         return solution
+<<<<<<< ours
+
+||||||| ancestor
+    
+=======
 
     # ==========================
     # Helper functions
@@ -218,6 +328,7 @@ class HeuristicPlugin:
             prev_node = node
         return time
 
+>>>>>>> theirs
     def check_feasible(self, route):
         if not route or len(route) < 3:
             return True

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import os
 
+
 def is_number_string(s):
     """
     Determine if a string is a numeric string, including integers and decimals.
@@ -16,6 +17,7 @@ def is_number_string(s):
     """
     pattern = r"^[-+]?\d+(\.\d+)?$"  # Regular expression to match integers or decimals
     return re.match(pattern, s) is not None
+
 
 def convert_to_number(s):
     """
@@ -38,37 +40,39 @@ def convert_to_number(s):
     except (ValueError, TypeError):
         return None
 
+
 def extract_best_objective(output_text):
     """
     Extract Best objective or Optimal objective value from Gurobi output.
-    
+
     Args:
         output_text: Gurobi output text
-    
+
     Returns:
         float or None: Optimal solution value, returns None if not found
     """
     # First check if model is infeasible
     if "Model is infeasible" in output_text:
         return None
-    
+
     # Try to find Best objective
     match = re.search(r'Best objective\s+([\d.e+-]+)', output_text)
     if not match:
         # If not found, try to find Optimal objective
         match = re.search(r'Optimal objective\s+([\d.e+-]+)', output_text)
-    
+
     if not match:
         # If not found, try to find Optimal cost
         match = re.search(r'Optimal cost\s+([\d.e+-]+)', output_text)
-    
+
     if match:
         try:
             return float(match.group(1))
         except ValueError:
             return None
-    
+
     return None
+
 
 # def extract_and_execute_python_code(text_content):
 #     """
@@ -191,6 +195,7 @@ def extract_and_execute_python_code(text_content):
 
     return False, "No valid code blocks executed"
 
+
 def eval_model_result(success, result, ground_truth, err_range=0.1):
     pass_flag = False
     correct_flag = False
@@ -203,7 +208,7 @@ def eval_model_result(success, result, ground_truth, err_range=0.1):
             if result_num is not None and ground_truth_num is not None:
                 if abs(result_num - ground_truth_num) < err_range:
                     correct_flag = True
-        elif result == 'None': # no available solution
+        elif result == 'None':  # no available solution
             if ground_truth is None or ground_truth == 'None':
                 correct_flag = True
     return pass_flag, correct_flag 
