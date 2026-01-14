@@ -1,3 +1,0 @@
-ancestorEntries = ["heuristic_prompts.py", "llm_heuristic.py"]
-ourEntries = ["heuristic_prompts.py", "llm_heuristic.py"]
-theirEntries = ["heuristic_prompts.py", "llm_heuristic.py"]
