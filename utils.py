@@ -4,6 +4,89 @@ import sys
 import tempfile
 import os
 
+# util.py
+import math
+
+
+class FreshnessAndPenaltyCalculator:
+    def __init__(self, config):
+        # --- C1 基础参数 ---
+        self.f = config.get("vehicle_fixed_cost", 240)  # C11: 每辆车固定成本
+        self.c = config.get("vehicle_distance_cost_per_km", 3)  # C12: 单位距离成本
+        self.ct = config.get("cooling_cost_per_hour", 15)  # C13: 单位时间制冷成本
+        self.v = config.get("vehicle_speed_kmph", 40)  # 速度 v
+
+        # --- C2 货损参数 ---
+        self.p = config.get("product_price_per_ton", 5000)  # 单价 p
+        self.theta1 = config.get("theta_transport", 0.002)  # θ1
+        self.theta2 = config.get("theta_service", 0.005)  # θ2
+        self.delta1 = config.get("customer_loss_threshold", 0.02)  # δ1
+
+        # --- C3 惩罚参数 ---
+        self.z1 = config.get("early_penalty_per_hour", 20)  # Z1
+        self.z2 = config.get("late_penalty_per_hour", 40)  # Z2
+
+    def calculate_route_cost(self, route_nodes, dist_matrix):
+        """
+        计算单条路径的变动成本 (C12 + C13 + C2 + C3)
+        注意：固定成本 C11 在 Plugin 层级统一根据路径数计算
+        """
+        route_dist = 0.0
+        c2_freshness = 0.0
+        c3_penalty = 0.0
+
+        curr_time = 0.0  # t_ik (分钟)
+        cum_service_h = 0.0  # t'_ik (累计装卸小时)
+
+        for i in range(1, len(route_nodes)):
+            prev = route_nodes[i - 1]
+            curr = route_nodes[i]
+
+            # --- 1. 物理计算 ---
+            d = dist_matrix[prev['id']][curr['id']]
+            route_dist += d
+            drive_min = d * (60.0 / self.v)
+            curr_time += drive_min  # 到达时刻 t_ik
+
+            # --- 2. 货损成本 C2 (式4, 式6) ---
+            if curr['id'] != 0:
+                tik_h = curr_time / 60.0
+                # r_i = 1 - exp(-theta1*(tik - t'ik) - theta2*t'ik)
+                ri = 1 - math.exp(-self.theta1 * (tik_h - cum_service_h) - self.theta2 * cum_service_h)
+                # Di * max(ri - delta1, 0)
+                c2_freshness += self.p * curr['demand'] * max(ri - self.delta1, 0)
+
+            # --- 3. 时间惩罚 C3 (式7) ---
+            if curr['id'] != 0:
+                fi_t = 0.0
+                ei, li = curr['ready_time'], curr['due_date']
+                Ei, Li = curr['E_i'], curr['L_i']
+
+                if Ei <= curr_time < ei:
+                    fi_t = self.z1 * (ei - curr_time) / (ei - Ei + 1e-6)
+                elif li < curr_time <= Li:
+                    fi_t = self.z2 * (curr_time - li) / (Li - li + 1e-6)
+                elif curr_time < Ei or curr_time > Li:
+                    fi_t = 300.0  # 极高惩罚项
+                c3_penalty += fi_t
+
+            # --- 4. 状态更新 ---
+            # 离开时刻逻辑
+            curr_time = max(curr_time, curr['ready_time']) + curr['service_time']
+            cum_service_h += curr['service_time'] / 60.0
+
+        # C12: 距离成本
+        c12 = route_dist * self.c
+        # C13: 制冷成本 (基于总行驶时长)
+        total_drive_h = (curr_time / 60.0) - cum_service_h
+        c13 = total_drive_h * self.ct
+
+        return {
+            "variable_cost": c12 + c13 + c2_freshness + c3_penalty,  # C12+C13+C2+C3
+            "c2": c2_freshness,
+            "c3": c3_penalty,
+            "dist": route_dist
+        }
 
 def is_number_string(s):
     """
@@ -172,7 +255,7 @@ def extract_and_execute_python_code(text_content):
                 tmp_file.write(code_block)
                 temp_file_path = tmp_file.name
 
-            result = subprocess.run([sys.executable, temp_file_path], capture_output=True, text=True, check=False)
+            result = subprocess.run([sys.executable, temp_file_path], capture_output=True, text=True, encoding='utf-8', check=False)
 
             if result.returncode == 0:
                 print("Python code executed successfully.")

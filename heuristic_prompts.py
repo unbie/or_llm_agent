@@ -1,49 +1,58 @@
-HEURISTIC_PLUGIN_TEMPLATE = r"""
+HEURISTIC_PLUGIN_TEMPLATE = """
+你是一个熟悉 ALNS (Adaptive Large Neighborhood Search) 算法的 Python 工程师，请帮我实现生鲜物流 VRP 问题中的三个启发式算子：random_removal、worst_removal 和 greedy_insert。要求如下：
 
-# -*- coding: utf-8 -*-
+1. 数据结构：
+   - solution 是列表，每条路径是一个列表，例如 [0, node1, node2, 0]。
+   - 0 表示仓库，node 表示客户节点。
+   - self.dist_matrix[i][j] 表示节点 i 到节点 j 的距离。
+   - 移除节点后，如果路径长度 <= 2（即只剩 [0,0]），则删除该路径。
+   - 插入节点时必须考虑新建路径的情况：新路径为 [0, node, 0]。
+
+2. 算子要求：
+
+【random_removal】：
+   - 随机移除 solution 中 ratio 比例的客户节点（非 0 节点），至少移除一个节点。
+   - 移除节点时按路径索引和位置索引降序，避免索引变化引发错误。
+   - 移除完成后统一删除长度 <= 2 的路径。
+   - 返回修改后的 solution 和 removed_nodes 列表。
+
+【worst_removal】：
+   - 对每条路径中非0节点计算边际贡献：
+       contrib = dist(prev,node) + dist(node,next) - dist(prev,next)
+   - 按贡献从大到小选择 ratio 比例的节点移除，至少移除一个节点。
+   - 移除顺序按路径索引和位置索引降序。
+   - 移除完成后统一删除长度 <= 2 的路径。
+   - 返回修改后的 solution 和 removed_nodes 列表。
+
+【greedy_insert】：
+   - 遍历 removed_nodes 中的每个节点。
+   - 对现有路径中每个可能插入位置计算增量成本：
+       cost_increase = dist(prev,node) + dist(node,next) - dist(prev,next)
+   - 同时考虑新建路径的成本：dist(0,node) + dist(node,0)
+   - 选择增量成本最小的位置插入节点。
+   - 返回修改后的 solution。
+
+3. 注意事项：
+   - 移除节点和插入节点时都要确保 solution 的合法性。
+   - 避免在循环中直接删除路径导致索引错误。
+   - 必须使用深拷贝或安全操作，保证不会破坏原 solution。
+   - 请生成完整可运行的 Python 函数，补充以下的TODO部分。
+
 import random
-import math
 import copy
+
 
 class HeuristicPlugin:
     def __init__(self, data):
         self.data = data
         self.capacity = data['vehicle_capacity']
         self.customers = data['customers']
-        self.dist_matrix = []  # 由 Solver 注入
+        self.dist_matrix = None   # 由 Solver 注入
 
-<<<<<<< ours
-        self.customer_lookup = {c['id']: c for c in self.customers}
+        # ID → customer dict
+        self.customer_lookup = {c['id']: c for c in data['customers']}
 
         # ALNS 算子配置
-        # 定义 Destroy 和 Insert 算子方法名
-||||||| ancestor
-        self.customer_lookup = {c['id']: c for c in self.customers}
-        
-        # ALNS 算子配置
-        # 定义 Destroy 和 Insert 算子方法名
-=======
-        # ==========================
-        # 车辆与成本参数 (基础参数设置)
-        # ==========================
-        self.vehicle_cost = data.get('vehicle_cost', 240)        # 固定成本
-        self.drive_cost = data.get('drive_cost', 3)             # 距离成本
-        self.cold_cost = data.get('cold_cost', 15)             # 制冷成本
-        self.average_speed = data.get('average_speed', 40)     # 速度 (km/h)
-        self.product_price = data.get('product_price', 5000)   # 生鲜单价
-        self.penalty_early = data.get('penalty_early', 20)     # 早到惩罚
-        self.penalty_late = data.get('penalty_late', 40)       # 迟到惩罚
-
-        # ==========================
-        # 生鲜损耗参数
-        # ==========================
-        self.freshness_decay_transport = data.get('theta1', 0.002)
-        self.freshness_decay_service = data.get('theta2', 0.005)
-
-        # ==========================
-        # ALNS 算子与权重更新
-        # ==========================
->>>>>>> theirs
         self.destroy_ops = [self.random_removal, self.worst_removal]
         self.insert_ops = [self.greedy_insert]
 
@@ -53,305 +62,90 @@ class HeuristicPlugin:
         self.last_i_idx = 0
         self.rho = 0.1
 
-    # ==========================
-    # 成本计算 (修复路径遍历逻辑)
-    # ==========================
+    # ==============================
+    # 这些函数禁止 LLM 实现
+    # ==============================
+
     def cost(self, solution):
-<<<<<<< ours
+        raise RuntimeError("LLM must not define cost()")
 
-        total_dist = 0.0
-        # TODO: 遍历所有路径，累加相邻节点间的距离
-        return total_dist
-||||||| ancestor
-        
-        total_dist = 0.0
-        # TODO: 遍历所有路径，累加相邻节点间的距离
-        return total_dist
-=======
-        total_cost = 0.0
-        for route in solution:
-            if len(route) < 3: # 路径必须包含 [0, 客户, 0]
-                continue
-            route_dist = 0.0
-            route_time = 0.0
-            damage_cost_total = 0.0
-            penalty_cost_total = 0.0
-            prev_node = 0
-            
-            # 【修复】只遍历中间的客户节点，排除末尾的仓库节点 0
-            for node in route[1:-1]:
-                cust = self.customers[node]
-                dist = self.dist_matrix[prev_node][node]
-                route_dist += dist
-                route_time += dist / self.average_speed
+    def validate(self, solution):
+        raise RuntimeError("LLM must not define validate()")
 
-                # 损耗计算: 基于运输时间与服务时间
-                t_transport = route_time
-                t_service = cust.get('service_time', 0)
-                freshness_init = cust.get('freshness_init', 0.98)
-                
-                # 生鲜变质率计算公式
-                r_i = 1 - freshness_init * math.exp(
-                    -self.freshness_decay_transport * t_transport
-                    - self.freshness_decay_service * t_service
-                )
-                r_i = max(r_i, 0.0)
->>>>>>> theirs
+    def check_feasible(self, route):
+        raise RuntimeError("LLM must not define feasibility")
 
-                delta1 = cust.get('customer_delta', 0.02)
-                delta2 = cust.get('supplier_delta', 0.05)
-                D_i = cust.get('demand', 0)
-                P_i = cust.get('return_qty', 0)
-                
-                # 货损成本
-                damage_cost_total += self.product_price * (
-                    max(r_i - delta1, 0) * D_i + max(r_i - delta2, 0) * P_i
-                )
+    # ==============================
+    # ALNS 框架函数（固定）
+    # ==============================
 
-                # 时间窗惩罚计算
-                ready = cust.get('ready_time', 0)
-                due = cust.get('due_date', float('inf'))
-                if route_time < ready:
-                    penalty_cost_total += self.penalty_early * (ready - route_time)
-                    route_time = ready
-                elif route_time > due:
-                    penalty_cost_total += self.penalty_late * (route_time - due)
-                
-                route_time += t_service
-                prev_node = node
-
-            # 返回仓库的额外成本
-            dist_to_depot = self.dist_matrix[prev_node][0]
-            route_dist += dist_to_depot
-            route_time += dist_to_depot / self.average_speed
-
-            total_cost += (self.vehicle_cost + route_dist * self.drive_cost + 
-                          route_time * self.cold_cost + damage_cost_total + penalty_cost_total)
-        return total_cost
-
-    # ==========================
-    # ALNS 核心接口
-    # ==========================
     def destroy(self, solution, remove_ratio=0.2):
-
-        # 破坏算子：移除部分节点。
-        # 返回: (partial_solution, removed_nodes)
-        # 注意:
-        # 1.不要移除仓库节点
-        # 2. 如果某路径移除节点后只剩[0, 0]，应将其从解中删除。
-
+    
+        # 调用 Destroy 算子移除解中的客户节点。
+        # 返回 new_solution, removed_nodes
+        # 
         solution = copy.deepcopy(solution)
         self.last_d_idx = random.choices(range(len(self.destroy_ops)), weights=self.d_weights)[0]
         op = self.destroy_ops[self.last_d_idx]
-
-        # 执行具体算子逻辑
         return op(solution, remove_ratio)
 
-<<<<<<< ours
-    def insert(self, partial_solution, removed_nodes):
-
-        # 修复算子：将移除的节点重新插入。
-        # 返回: new_solution
-        # 注意:
-        # 1.尝试插入到现有路径的合法位置(0和0之间)。
-        # 2.如果无法插入，创建新路径[0, node, 0]。
-        # 
-        partial_solution = copy.deepcopy(partial_solution)
-        # 轮盘赌选择算子
-||||||| ancestor
     def insert(self, partial_solution, removed_nodes):
         
-        # 修复算子：将移除的节点重新插入。
-        # 返回: new_solution
-        # 注意:
-        # 1.尝试插入到现有路径的合法位置(0和0之间)。
-        # 2.如果无法插入，创建新路径[0, node, 0]。
-        # 
+        # 调用 Insert 算子将 removed_nodes 插回解中。
+        # 返回 new_solution
+        
         partial_solution = copy.deepcopy(partial_solution)
-        # 轮盘赌选择算子
-=======
-    def insert(self, solution, removed_nodes):
-        solution = copy.deepcopy(solution)
->>>>>>> theirs
         self.last_i_idx = random.choices(range(len(self.insert_ops)), weights=self.i_weights)[0]
         op = self.insert_ops[self.last_i_idx]
-<<<<<<< ours
-
         return op(partial_solution, removed_nodes)
 
-||||||| ancestor
-        
-        return op(partial_solution, removed_nodes)
-    
-=======
-        return op(solution, removed_nodes)
-    
->>>>>>> theirs
     def update_weights(self, reward):
-<<<<<<< ours
-
-        # 根据Solver传回的reward更新最近一次使用的算子权重
-
-        # 更新 Destroy 权重
-        w_d = self.d_weights[self.last_d_idx]
-        self.d_weights[self.last_d_idx] = w_d * (1 - self.rho) + reward * self.rho
-
-        # 更新 Insert 权重
-        w_i = self.i_weights[self.last_i_idx]
-        self.i_weights[self.last_i_idx] = w_i * (1 - self.rho) + reward * self.rho
-
-    # ============================================
-    # TODO: 请在下方实现具体的 Destroy 和 Insert 算子
-    # ============================================
-
-||||||| ancestor
-        
-        # 根据Solver传回的reward更新最近一次使用的算子权重
-        
-        # 更新 Destroy 权重
-        w_d = self.d_weights[self.last_d_idx]
-        self.d_weights[self.last_d_idx] = w_d * (1 - self.rho) + reward * self.rho
-        
-        # 更新 Insert 权重
-        w_i = self.i_weights[self.last_i_idx]
-        self.i_weights[self.last_i_idx] = w_i * (1 - self.rho) + reward * self.rho
-        
-    # ============================================
-    # TODO: 请在下方实现具体的 Destroy 和 Insert 算子
-    # ============================================
-    
-=======
-        self.d_weights[self.last_d_idx] = self.d_weights[self.last_d_idx]*(1-self.rho) + reward*self.rho
-        self.i_weights[self.last_i_idx] = self.i_weights[self.last_i_idx]*(1-self.rho) + reward*self.rho
-
-    # ==========================
-    # Destroy operators
-    # ==========================
->>>>>>> theirs
-    def random_removal(self, solution, ratio):
-        # TODO: Implement optimized random removal strategy
-        removed = []
-        all_customers = [c for route in solution for c in route[1:-1]]
-        num_remove = max(1, int(len(all_customers) * ratio))
-        removed = random.sample(all_customers, num_remove)
-        for c in removed:
-            for route in solution:
-                if c in route:
-                    route.remove(c)
-        solution = [r for r in solution if len(r) > 2]
-        return solution, removed
-
-    def worst_removal(self, solution, ratio):
-        # TODO: Implement worst removal based on time window urgency
-        removal_costs = []
-        for route in solution:
-            if len(route) < 3:
-                continue
-            for i in range(1, len(route)-1):
-                node = route[i]
-                cust = self.customers[node]
-                time_window_width = cust.get('due_date', float('inf')) - cust.get('ready_time', 0)
-                time_remaining = cust.get('due_date', float('inf')) - self.arrival_time(route, i)
-                cost = (1.0 / max(time_window_width, 0.1)) + (1.0 / max(time_remaining, 0.1))
-                removal_costs.append((cost, node))
-        removal_costs.sort(key=lambda x: x[0], reverse=True)
-        num_remove = max(1, int(len(removal_costs) * ratio))
-        removed = [node for _, node in removal_costs[:num_remove]]
-        for c in removed:
-            for route in solution:
-                if c in route:
-                    route.remove(c)
-        solution = [r for r in solution if len(r) > 2]
-        return solution, removed
-<<<<<<< ours
-
-||||||| ancestor
-        
-=======
-
-    # ==========================
-    # Insert operator
-    # ==========================
->>>>>>> theirs
-    def greedy_insert(self, solution, removed_nodes):
-<<<<<<< ours
-    # TODO: 贪婪插入逻辑
-||||||| ancestor
-    # TODO: 贪婪插入逻辑
-    # 必须检查容量和时间窗约束 (check_feasible)
-=======
-        # TODO: Implement greedy insertion strategy
-        removed_nodes_sorted = sorted(
-            removed_nodes,
-            key=lambda node: self.customers[node].get('due_date', float('inf'))
+        self.d_weights[self.last_d_idx] = (
+            self.d_weights[self.last_d_idx] * (1 - self.rho) + reward * self.rho
         )
-        for node in removed_nodes_sorted:
-            best_cost = float('inf')
-            best_route = None
-            best_pos = None
-            for r_idx, route in enumerate(solution):
-                for pos in range(1, len(route)):
-                    trial_route = route[:pos] + [node] + route[pos:]
-                    if self.check_feasible(trial_route):
-                        cost_trial = self.cost([trial_route])
-                        if cost_trial < best_cost:
-                            best_cost = cost_trial
-                            best_route = r_idx
-                            best_pos = pos
-            if best_route is not None:
-                solution[best_route].insert(best_pos, node)
-            else:
-                solution.append([0, node, 0])
->>>>>>> theirs
-        return solution
-<<<<<<< ours
+        self.i_weights[self.last_i_idx] = (
+            self.i_weights[self.last_i_idx] * (1 - self.rho) + reward * self.rho
+        )
 
-||||||| ancestor
+    # ===================================================
+    # TODO: 请在下方实现具体的 Destroy 和 Insert 算子
+    # ===================================================
+
+    # -----------------------------
+    # Destroy 算子要求
+    # -----------------------------
+    # random_removal:
+    #   - 随机移除 ratio 比例的客户节点（非 0 节点），至少移除一个。
+    #   - 移除后，如果路径只剩 [0,0]，去掉空路径。
+    #   - 返回 new_solution, removed_nodes
     
-=======
+    def random_removal(self, solution, ratio):
+        # TODO: 从 solution 中随机移除 ratio 比例的客户
+        pass
 
-    # ==========================
-    # Helper functions
-    # ==========================
-    def arrival_time(self, route, pos):
-        time = 0.0
-        prev_node = 0
-        for i in range(1, pos+1):
-            node = route[i]
-            cust = self.customers[node]
-            time += self.dist_matrix[prev_node][node] / self.average_speed
-            ready = cust.get('ready_time', 0)
-            if time < ready:
-                time = ready
-            if i < pos: # 只有到达之前的节点才需要加服务时间
-                time += cust.get('service_time', 0)
-            prev_node = node
-        return time
+    # worst_removal:
+    #   - 计算每个客户节点的边际距离贡献：
+    #       contrib = dist(prev,node) + dist(node,next) - dist(prev,next)
+    #   - 按贡献从大到小移除 n 个节点（n=max(1,total_customer*ratio)）
+    #   - 路径长度小于3的节点跳过
+    #   - 返回 new_solution, removed_nodes
+    
+    def worst_removal(self, solution, ratio):
+        # TODO: 根据 dist_matrix 计算每个客户的边际距离贡献
+        pass
 
->>>>>>> theirs
-    def check_feasible(self, route):
-        if not route or len(route) < 3:
-            return True
-        load = 0
-        time = 0.0
-        prev_node = 0
-        # 【修复】只检查中间客户节点的约束
-        for node in route[1:-1]:
-            cust = self.customers[node]
-            travel_time = self.dist_matrix[prev_node][node] / self.average_speed
-            time += travel_time
-            if time > cust.get('due_date', float('inf')):
-                return False
-            time = max(time, cust.get('ready_time', 0))
-            load += cust.get('demand', 0)
-            if load > self.capacity:
-                return False
-            time += cust.get('service_time', 0)
-            prev_node = node
-        
-        # 检查返回仓库的可行性
-        time += self.dist_matrix[prev_node][0] / self.average_speed
-        if time > self.customers[0].get('due_date', float('inf')):
-            return False
-        return True
+    # -----------------------------
+    # Insert 算子要求
+    # -----------------------------
+    # greedy_insert:
+    #   - 遍历每个 removed_nodes
+    #   - 对每条路径的每个合法位置计算插入成本：
+    #         cost_increase = dist(prev,node)+dist(node,next)-dist(prev,next)
+    #   - 必须考虑新路径插入，增量成本 = dist(0,node)+dist(node,0)
+    #   - 选择增量最小的位置插入
+    #   - 返回修改后的 solution
+    #   - 系统会检查容量和时间窗可行性，你无需实现
+    def greedy_insert(self, solution, removed_nodes):
+        # TODO: 把 removed_nodes 用最小距离增量插入到 solution
+        pass
 """
