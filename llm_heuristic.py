@@ -46,7 +46,7 @@ load_dotenv()
 
 api_data = dict(
     # 配置 API Key，这里直接填入您的火山引擎 Key，不再从环境变量读取以避免报错
-    api_key="0a1ccd3d-2e96-4770-9e70-ace5d0c5bd66",
+    api_key="3b2262fa-c113-4f64-90db-10ed2659a583",
     # 配置 Base URL，指定为火山引擎的接口地址
     base_url="https://ark.cn-beijing.volces.com/api/v3"
 )
@@ -290,21 +290,23 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
 
     # 只让 LLM 补全 destroy/insert 算子
     todo_checklist = (
-        "你只能补全以下三个函数:\n"
-        "- random_removal\n"
-        "- worst_removal\n"
-        "- greedy_insert\n"
-        "严禁实现 cost / validate / check_feasible\n"
+        "你必须实现以下三个函数:\n"
+        "1. `random_removal(solution, num_to_remove)`: 随机移除\n"
+        "2. `worst_removal(solution, num_to_remove)`: 根据某种成本移除\n"
+        "3. `greedy_insert(solution, removed_customers, all_nodes_dict)`: 贪婪插入\n\n"
+        "重要提示：\n"
+        "在 `greedy_insert` 中，为了判断插入位置的好坏，你**必须**使用 `self.calculator.calculate_route_cost(route_nodes, self.dist_matrix)`。\n"
+        "该函数返回字典 `{'total_cost': float, ...}`。只有使用了它，才能感知到时间窗惩罚！\n"
+        "严禁自己重新实现 cost 或 check_feasible 逻辑，直接调用 `self.calculator` 即可。\n"
     )
 
     current_project_dir = os.path.dirname(os.path.abspath(__file__)).replace("\\", "/")
 
     prompt = (
         "你正在实现一个 ALNS 启发式插件。\n"
-        "成本函数、时间窗、容量、freshness 已由系统实现。\n"
-        "你只能负责任务：如何移动客户节点。\n\n"
+        "主程序已将 `self.calculator` 和 `self.dist_matrix` 注入到你的类实例中。\n"
         f"插件模板:\n{HEURISTIC_PLUGIN_TEMPLATE}\n\n"
-        f"客户数据结构:\n{json.dumps(data['customers'][0], ensure_ascii=False)}\n\n"
+        f"客户数据结构预览:\n{json.dumps(data['customers'][0], ensure_ascii=False)}\n\n"
         f"{todo_checklist}\n\n"
         "输出一个 ```python``` 代码块，仅包含 HeuristicPlugin 类。"
     )
@@ -327,9 +329,12 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             f"{llm_plugin_code}\n\n"
             "if __name__ == '__main__':\n"
             "    try:\n"
+            "        # 1. 创建 Plugin 实例 (传入空数据占位，稍后由 Solver 注入)\n"
             "        plugin = HeuristicPlugin(data)\n"
+            "        # 2. 创建 Solver (它会自动注入 dist_matrix 和 calculator 给 plugin)\n"
             "        solver = HeuristicSolver(data, plugin)\n"
-            "        best_sol, best_cost = solver.solve(max_iters=1500)\n"
+            "        # 3. 求解\n"
+            "        best_sol, best_cost = solver.solve(max_iters=2000)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception:\n"
@@ -342,10 +347,15 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             messages_bak.append({"role": "assistant", "content": llm_response})
             return True, result_msg, messages_bak
 
+        print("-" * 30)
+        print("Debugging Output:")
+        print(result_msg) 
+        print("-" * 30)
+
         print(f"\n[执行失败] 第 {attempt + 1} 次修复循环中...")
         messages.append({"role": "assistant", "content": llm_response})
         messages.append(
-            {"role": "user", "content": f"代码运行报错：\n{result_msg}\n请确保补全了所有 TODO 方法并正确引用了 Schema。"}
+            {"role": "user", "content": f"代码运行报错：\n{result_msg}\n请修复代码。"}
         )
         attempt += 1
 

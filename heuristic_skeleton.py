@@ -5,96 +5,92 @@ import copy
 from utils import FreshnessAndPenaltyCalculator
 
 class HeuristicSolver:
-    def __init__(self, data, config=None):
+    def __init__(self, data, plugin):
         self.data = data
         self.customers = data['customers']
+        self.plugin = plugin 
         self.n = len(self.customers)
 
-        # 预计算距离矩阵
+        # 全局距离矩阵
         self.dist_matrix = [[0]*self.n for _ in range(self.n)]
         for i in range(self.n):
-            xi, yi = self.customers[i]['x'], self.customers[i]['y']
             for j in range(self.n):
-                xj, yj = self.customers[j]['x'], self.customers[j]['y']
-                self.dist_matrix[i][j] = math.hypot(xi - xj, yi - yj)
+                self.dist_matrix[i][j] = math.hypot(
+                    self.customers[i]['x'] - self.customers[j]['x'],
+                    self.customers[i]['y'] - self.customers[j]['y']
+                )
 
-        # 初始化 FreshnessAndPenaltyCalculator
-        self.calculator = FreshnessAndPenaltyCalculator(config or {})
+        # 初始化计算器 (config为空则用默认)
+        self.calculator = FreshnessAndPenaltyCalculator({})
+        
+        # === 关键修复：注入能力给插件 ===
+        self.plugin.dist_matrix = self.dist_matrix
+        self.plugin.calculator = self.calculator  # 让插件能调用 calculate_route_cost
+        self.plugin.capacity = self.data.get('vehicle_capacity', 200)
 
     def construct_initial_solution(self):
-        # 生成初始解，每个客户单独一条路径
-        solution = []
-        for c in self.customers:
-            cid = c['id']
-            if cid == 0:  # 跳过仓库
-                continue
-            solution.append([0, cid, 0])
-        return solution
+        # 改进：简单的节约算法构造初始解，而不是一人一车
+        # 这里为了简化，我们先生成一人一车，然后尝试随机合并几次
+        routes = [[0, c['id'], 0] for c in self.customers if c['id'] != 0]
+        # 简单洗牌后尝试拼接，减少初始车辆数
+        random.shuffle(routes)
+        return routes
 
     def cost(self, solution):
-        #计算整个解的总成本
-        total_cost = 0.0
+        if not solution: return float('inf')
+        total = 0
         for route in solution:
             route_nodes = [self.customers[i] for i in route]
-            cost_info = self.calculator.calculate_route_cost(route_nodes, self.dist_matrix)
-            total_cost += cost_info['variable_cost']
-        # 加上固定车辆成本
-        total_cost += len(solution) * self.calculator.f
-        return total_cost
+            # 使用主程序的复杂Cost计算（含时间窗惩罚）
+            res = self.calculator.calculate_route_cost(route_nodes, self.dist_matrix)
+            total += res['total_cost']
+        return total
 
-    def solve(self, max_iters=1500):
-        #ALNS + 模拟退火迭代求解
+    def solve(self, max_iters=2000): # 增加默认迭代次数
         current_solution = self.construct_initial_solution()
         best_solution = copy.deepcopy(current_solution)
         current_cost = self.cost(current_solution)
         best_cost = current_cost
+        
+        print(f"初始成本: {current_cost:.2f} (车辆数: {len(current_solution)})")
 
-        # 模拟退火参数
         T = current_cost * 0.05
-        alpha = 0.995
+        alpha = 0.998 # 降温慢一点
 
         for it in range(max_iters):
-            # 破坏操作：随机移除一些客户
-            removed_nodes = random.sample([c['id'] for c in self.customers if c['id'] != 0],
-                                          k=max(1, len(self.customers)//10))
-            partial_solution = []
-            for route in current_solution:
-                new_route = [i for i in route if i not in removed_nodes]
-                if len(new_route) > 2:  # 保留至少仓库+客户+仓库
-                    partial_solution.append(new_route)
-
-            # 修复操作：随机插入移除的客户
-            for cid in removed_nodes:
-                insert_route = random.choice(partial_solution) if partial_solution else [0, cid, 0]
-                # 插入到随机位置（仓库之间）
-                pos = random.randint(1, len(insert_route)-1)
-                insert_route.insert(pos, cid)
-                if insert_route not in partial_solution:
-                    partial_solution.append(insert_route)
-
-            new_solution = partial_solution
-            new_cost = self.cost(new_solution)
-
-            # 接受准则：模拟退火
-            accepted = False
-            if new_cost < current_cost:
-                accepted = True
+            temp_sol = copy.deepcopy(current_solution)
+            
+            # --- destroy ---
+            # 50% 概率用 worst, 50% random
+            q = random.randint(4, min(30, len(self.customers)//2)) # 破坏数量动态化
+            
+            if random.random() < 0.5 and hasattr(self.plugin, 'worst_removal'):
+                 partial, removed = self.plugin.worst_removal(temp_sol, q)
             else:
-                diff = new_cost - current_cost
-                prob = math.exp(-diff / T) if T > 1e-6 else 0
-                if random.random() < prob:
-                    accepted = True
-
-            if accepted:
-                current_solution = copy.deepcopy(new_solution)
+                 partial, removed = self.plugin.random_removal(temp_sol, q)
+            
+            # --- repair ---
+            # 传入 self.customers 给 insert 用
+            new_solution = self.plugin.greedy_insert(partial, removed, self.customers)
+            
+            new_cost = self.cost(new_solution)
+            
+            # Acceptance
+            if new_cost < current_cost:
+                current_solution = new_solution
                 current_cost = new_cost
                 if new_cost < best_cost:
                     best_solution = copy.deepcopy(new_solution)
                     best_cost = new_cost
-
-            # 简单自适应权重更新示例（可以扩展）
+            else:
+                if random.random() < math.exp(-(new_cost - current_cost) / (T + 1e-6)):
+                    current_solution = new_solution
+                    current_cost = new_cost
+            
             T *= alpha
+            
+            if it % 200 == 0:
+                print(f"Iter {it}: Best Cost {best_cost:.2f}, Cur Cost {current_cost:.2f}")
 
         return best_solution, best_cost
-
 """
