@@ -10,21 +10,36 @@ import math
 
 class FreshnessAndPenaltyCalculator:
     def __init__(self, config):
+        # === 兼容函数：同时支持字典和对象 ===
+        def safe_get(cfg, key, default):
+            """
+            智能获取配置值：
+            - 如果 cfg 是字典，使用 .get()
+            - 如果 cfg 是对象，使用 getattr()
+            - 都失败则返回默认值
+            """
+            if isinstance(cfg, dict):
+                return cfg.get(key, default)
+            elif hasattr(cfg, key):
+                return getattr(cfg, key, default)
+            else:
+                return default
+        
         # --- C1 基础参数 ---
-        self.f = config.get("vehicle_fixed_cost", 240)  # C11: 每辆车固定成本
-        self.c = config.get("vehicle_distance_cost_per_km", 3)  # C12: 单位距离成本
-        self.ct = config.get("cooling_cost_per_hour", 15)  # C13: 单位时间制冷成本
-        self.v = config.get("vehicle_speed_kmph", 40)  # 速度 v
+        self.f = safe_get(config, "vehicle_fixed_cost", 240)  # C11: 每辆车固定成本
+        self.c = safe_get(config, "vehicle_distance_cost_per_km", 3)  # C12: 单位距离成本
+        self.ct = safe_get(config, "cooling_cost_per_hour", 15)  # C13: 单位时间制冷成本
+        self.v = safe_get(config, "vehicle_speed_kmph", 40)  # 速度 v
 
         # --- C2 货损参数 ---
-        self.p = config.get("product_price_per_ton", 5000)  # 单价 p
-        self.theta1 = config.get("theta_transport", 0.002)  # θ1
-        self.theta2 = config.get("theta_service", 0.005)  # θ2
-        self.delta1 = config.get("customer_loss_threshold", 0.02)  # δ1
+        self.p = safe_get(config, "product_price_per_ton", 5000)  # 单价 p
+        self.theta1 = safe_get(config, "theta_transport", 0.002)  # θ1
+        self.theta2 = safe_get(config, "theta_service", 0.005)  # θ2
+        self.delta1 = safe_get(config, "customer_loss_threshold", 0.02)  # δ1
 
         # --- C3 惩罚参数 ---
-        self.z1 = config.get("early_penalty_per_hour", 20)  # Z1
-        self.z2 = config.get("late_penalty_per_hour", 40)  # Z2
+        self.z1 = safe_get(config, "early_penalty_per_hour", 20)  # Z1
+        self.z2 = safe_get(config, "late_penalty_per_hour", 40)  # Z2
 
     def calculate_route_cost(self, route_nodes, dist_matrix):
         """

@@ -284,84 +284,126 @@ def query_llm(messages, model_name="ep-20260106214023-k4p8b", temperature=0):
 #
 
 
+# 修改 llm_heuristic.py 中的 generate_or_code_solver 函数
 def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
-
     messages = copy.deepcopy(messages_bak)
-
-    # 只让 LLM 补全 destroy/insert 算子
-    todo_checklist = (
-        "你必须实现以下三个函数:\n"
-        "1. `random_removal(solution, num_to_remove)`: 随机移除\n"
-        "2. `worst_removal(solution, num_to_remove)`: 根据某种成本移除\n"
-        "3. `greedy_insert(solution, removed_customers, all_nodes_dict)`: 贪婪插入\n\n"
-        "重要提示：\n"
-        "在 `greedy_insert` 中，为了判断插入位置的好坏，你**必须**使用 `self.calculator.calculate_route_cost(route_nodes, self.dist_matrix)`。\n"
-        "该函数返回字典 `{'total_cost': float, ...}`。只有使用了它，才能感知到时间窗惩罚！\n"
-        "严禁自己重新实现 cost 或 check_feasible 逻辑，直接调用 `self.calculator` 即可。\n"
-    )
-
+    
     current_project_dir = os.path.dirname(os.path.abspath(__file__)).replace("\\", "/")
 
-    prompt = (
-        "你正在实现一个 ALNS 启发式插件。\n"
-        "主程序已将 `self.calculator` 和 `self.dist_matrix` 注入到你的类实例中。\n"
-        f"插件模板:\n{HEURISTIC_PLUGIN_TEMPLATE}\n\n"
-        f"客户数据结构预览:\n{json.dumps(data['customers'][0], ensure_ascii=False)}\n\n"
-        f"{todo_checklist}\n\n"
-        "输出一个 ```python``` 代码块，仅包含 HeuristicPlugin 类。"
-    )
-
-
+    # === 使用更精确的 Prompt ===
+    prompt = HEURISTIC_PLUGIN_TEMPLATE  # 使用 heuristic_prompts.py 中定义的模板
+    
     messages.append({"role": "user", "content": prompt})
     attempt = 0
 
     while attempt < max_attempts:
         llm_response = query_llm(messages, model_name)
+        
+        # === 提取 LLM 生成的代码 ===
         code_match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
         llm_plugin_code = code_match.group(1).strip() if code_match else llm_response
+        
+        # === 强制提取 HeuristicPlugin 类（防止 LLM 生成其他内容）===
+        print("\n[处理] 提取 HeuristicPlugin 类...")
+        
+        # 方案 1: 如果 LLM 生成了完整的类定义，只保留方法部分
+        if "class HeuristicPlugin:" in llm_plugin_code:
+            # 提取类中的方法（去掉类定义行）
+            lines = llm_plugin_code.split('\n')
+            method_lines = []
+            in_class = False
+            indent_level = 0
+            
+            for line in lines:
+                if 'class HeuristicPlugin:' in line:
+                    in_class = True
+                    indent_level = len(line) - len(line.lstrip())
+                    continue  # 跳过类定义行
+                
+                if in_class:
+                    # 如果遇到新的类定义（顶层），停止
+                    if line.strip() and not line.startswith(' ') and not line.startswith('\t'):
+                        if 'class ' in line:
+                            break
+                    method_lines.append(line)
+            
+            # 重新构建完整的 Plugin 类
+            plugin_class_code = "class HeuristicPlugin:\n"
+            plugin_class_code += "    def __init__(self, *args, **kwargs):\n"
+            plugin_class_code += "        self.dist_matrix = kwargs.get('dist_matrix')\n"
+            plugin_class_code += "        self.vehicle_capacity = kwargs.get('vehicle_capacity', 200)\n"
+            plugin_class_code += "        self.nodes_dict = kwargs.get('nodes_dict')\n\n"
+            plugin_class_code += '\n'.join(method_lines)
+            
+            print(f"[提取] 重构了 HeuristicPlugin 类（{len(plugin_class_code)} 字符）")
+        else:
+            # 方案 2: 如果只生成了方法，手动添加类框架
+            plugin_class_code = "class HeuristicPlugin:\n"
+            plugin_class_code += "    def __init__(self, *args, **kwargs):\n"
+            plugin_class_code += "        self.dist_matrix = kwargs.get('dist_matrix')\n"
+            plugin_class_code += "        self.vehicle_capacity = kwargs.get('vehicle_capacity', 200)\n"
+            plugin_class_code += "        self.nodes_dict = kwargs.get('nodes_dict')\n\n"
+            
+            # 给 LLM 生成的方法添加缩进
+            indented_methods = '\n'.join('    ' + line if line.strip() else line 
+                                         for line in llm_plugin_code.split('\n'))
+            plugin_class_code += indented_methods
+            
+            print(f"[提取] 手动构建 HeuristicPlugin 类（{len(plugin_class_code)} 字符）")
 
-        final_script = (
+        # === 拼接最终脚本（关键修改）===
+        full_code = (
             "# -*- coding: utf-8 -*-\n"
-            "import math, json, random, copy, time, traceback, sys\n"
-            f"sys.path.append('{current_project_dir}')\n\n"
+            "import math, json, random, copy, sys, traceback\n"
+            f"sys.path.append('{current_project_dir}')\n"
+            "from utils import FreshnessAndPenaltyCalculator\n\n"
             f"data = {json.dumps(data)}\n\n"
+            # === 第一部分：Skeleton（包含 HeuristicSolver）===
             f"{HEURISTIC_SKELETON}\n\n"
-            f"{llm_plugin_code}\n\n"
+            # === 第二部分：LLM 生成的 HeuristicPlugin ===
+            f"{plugin_class_code}\n\n"
+            # === 第三部分：执行代码 ===
             "if __name__ == '__main__':\n"
             "    try:\n"
-            "        # 1. 创建 Plugin 实例 (传入空数据占位，稍后由 Solver 注入)\n"
-            "        plugin = HeuristicPlugin(data)\n"
-            "        # 2. 创建 Solver (它会自动注入 dist_matrix 和 calculator 给 plugin)\n"
+            "        plugin = HeuristicPlugin(data=data)\n"
+            "        print('Plugin 初始化成功')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
-            "        # 3. 求解\n"
-            "        best_sol, best_cost = solver.solve(max_iters=2000)\n"
+            "        print('Solver 初始化成功')\n"
+            "        best_sol, best_cost = solver.solve(max_iters=120)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
-            "    except Exception:\n"
-            "        traceback.print_exc()\n"
+            "    except Exception as e:\n"
+            "        print(f'Runtime Error: {e}')\n"
+            "        traceback.print_exc(file=sys.stdout)\n"
         )
 
-        success, result_msg = extract_and_execute_python_code(f"```python\n{final_script}\n```")
+        # === 验证代码结构 ===
+        solver_count = full_code.count('class HeuristicSolver')
+        plugin_count = full_code.count('class HeuristicPlugin')
+        init_debug = '[初始化]' in full_code
+        
+        print(f"[验证] Solver类: {solver_count}, Plugin类: {plugin_count}, 调试信息: {init_debug}")
+        
+        if solver_count != 1 or plugin_count != 1:
+            print(f"[警告] 类定义数量异常！Solver={solver_count}, Plugin={plugin_count}")
+        
+     
+        # === 执行代码 ===
+        success, result_msg = extract_and_execute_python_code(f"```python\n{full_code}\n```")
 
         if success and "BEST_COST:" in result_msg:
-            messages_bak.append({"role": "assistant", "content": llm_response})
+            print("\n=== 求解成功 ===")
             return True, result_msg, messages_bak
 
-        print("-" * 30)
-        print("Debugging Output:")
-        print(result_msg) 
-        print("-" * 30)
-
-        print(f"\n[执行失败] 第 {attempt + 1} 次修复循环中...")
+        print(f"\n[Attempt {attempt+1} Failed]\n错误日志：\n{result_msg}\n")
         messages.append({"role": "assistant", "content": llm_response})
-        messages.append(
-            {"role": "user", "content": f"代码运行报错：\n{result_msg}\n请修复代码。"}
-        )
+        messages.append({
+            "role": "user", 
+            "content": f"代码执行报错，请修复。\n错误信息：\n{result_msg}\n\n注意：只需要实现 random_removal, worst_removal, greedy_insert 三个方法！"
+        })
         attempt += 1
 
     return False, None, messages_bak
-
-
 # def or_llm_agent(user_question, model_name="ep-20251202173916-9j664", max_attempts=3):
 #     """
 #     向 LLM 请求 Gurobi 代码解决方案并执行，如果失败则尝试修复。
@@ -472,43 +514,24 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
 #     return dataset
 #
 def load_solomon_data(file_path):
-    """
-    读取 Solomon Benchmark txt 文件（C101 结构），返回字典：
-    {
-        "vehicle_capacity": 200,
-        "customers": [
-            {"id": 0, "demand": 0, "x": 40, "y": 50, "ready_time":0, "due_date":1236, "service_time":0},
-            ...
-        ]
-    }
-    """
     data = {}
     customers = []
     vehicle_capacity = None
-
     with open(file_path, 'r') as f:
         lines = f.readlines()
-
-    # 先提取车辆容量
     for idx, line in enumerate(lines):
         line = line.strip()
-        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith(
-                "NUMBER") or line.startswith("CUSTOMER"):
+        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith("NUMBER") or line.startswith("CUSTOMER"):
             continue
         parts = line.split()
-        # 第一个找到的行，车辆信息行
         if len(parts) == 2 and vehicle_capacity is None:
-            # VEHICLE CAPACITY
             vehicle_capacity = int(parts[1])
             break
     if vehicle_capacity is None:
-        vehicle_capacity = 200  # 默认值
-
-    # 提取客户数据：行首是数字且长度>=7
+        vehicle_capacity = 200
     for line in lines:
         line = line.strip()
-        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith(
-                "NUMBER") or line.startswith("CUSTOMER") or line.startswith("CUST"):
+        if line == "" or line.startswith("C") or line.startswith("VEHICLE") or line.startswith("NUMBER") or line.startswith("CUSTOMER") or line.startswith("CUST"):
             continue
         parts = line.split()
         if parts[0].isdigit() and len(parts) >= 7:
@@ -520,112 +543,42 @@ def load_solomon_data(file_path):
             due_date = float(parts[5])
             service_time = float(parts[6])
             customers.append({
-                "id": cust_id,
-                "demand": demand,
-                "x": x,
-                "y": y,
-                "ready_time": ready_time,
-                "due_date": due_date,
-                "service_time": service_time
+                "id": cust_id, "demand": demand, "x": x, "y": y,
+                "ready_time": ready_time, "due_date": due_date, "service_time": service_time
             })
-
     data["vehicle_capacity"] = vehicle_capacity
     data["customers"] = customers
     return data
 
 
+
 if __name__ == "__main__":
-    # # Import the load_dataset function from the async script
-    # import sys
-    # import os
-    #
-    # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    #
-    # dataset = load_dataset('data/datasets/IndustryOR.json')
-    # # print(dataset['0'])
-    # console = Console()
-    #
-    # model_name = 'ep-20251202173916-9j664'
-    # # model_name = ''
-    #
-    # # model_name = 'Pro/deepseek-ai/DeepSeek-R1'
-    # # model_name = 'deepseek-reasoner'
-    #
-    # pass_count = 0
-    # correct_count = 0
-    # for i, d in dataset.items():
-    #     # print(i)
-    #     # if int(i) in [0]:
-    #     print_header("运筹优化问题")
-    #     user_question, answer = d['question'], d['answer']
-    #     # print(user_question)
-    #     buffer2 = io.StringIO()
-    #     with redirect_stdout(buffer2):
-    #         md = Markdown(user_question)
-    #         console.print(md)
-    #         print('-------------')
-    #
-    #     captured_output2 = buffer2.getvalue()
-    #     for c in captured_output2:
-    #         print(c, end="", flush=True)
-    #         time.sleep(0.005)
-    #     is_solve_success, best_solution = or_llm_heuristic_agent(user_question, model_name)
-    #     # is_solve_success, llm_result = gpt_code_agent_simple(user_question, model_name)
-    #     if is_solve_success:
-    #         print(f"成功执行代码，最优启发式成本: {best_solution}")
-    #     else:
-    #         print("执行代码失败。")
     import sys
     import os
     import io
-    import time
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from contextlib import redirect_stdout
-
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
     console = Console()
     model_name = 'ep-20260106214023-k4p8b'
     messages_bak = []
 
-    # 指定 Solomon Benchmark 文件路径
     solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\c1\c101.txt"
 
-    # 在加载数据后，调用求解器前添加
     dataset = load_solomon_data(solomon_file)
+    # Patch time windows for depot
+    if dataset['customers']:
+        depot = dataset['customers'][0]
+        for cust in dataset['customers']:
+            cust['E_i'] = max(0, cust['ready_time']) if cust['id'] != 0 else 0
+            cust['L_i'] = min(depot['due_date'], cust['due_date']) if cust['id'] != 0 else depot['due_date']
 
-    # 动态添加软时间窗边界
-    for cust in dataset['customers']:
-        # 设定：极早限度比 ready_time 早 60 分钟，极晚限度比 due_date 晚 120 分钟
-        # 仓库节点 (id=0) 通常不需要惩罚，或者范围设大一点
-        if cust['id'] == 0:
-            cust['E_i'] = 0
-            cust['L_i'] = cust['due_date']
-        else:
-            cust['E_i'] = max(0, cust['ready_time'] - 60)
-            cust['L_i'] = min(dataset['customers'][0]['due_date'], cust['due_date'] + 120)
-
-    # 打印问题描述
-    print_header("生鲜物流问题")
-    buffer2 = io.StringIO()
-    with redirect_stdout(buffer2):
-        md = Markdown(f"### VRPSTWSDBCCFLC 算例: {os.path.basename(solomon_file)}")
-        console.print(md)
-        print('------------------------------------')
-    captured_output2 = buffer2.getvalue()
-    for c in captured_output2:
-        print(c, end="", flush=True)
-        time.sleep(0.005)
-
-    # 调用启发式求解器
-    is_solve_success, best_solution_output, messages_bak = generate_or_code_solver(
-        messages_bak, model_name, dataset, max_attempts=3
+    print_header("生鲜物流 ALNS 求解")
+    
+    is_solve_success, output, _ = generate_or_code_solver(
+        messages_bak, model_name, dataset, max_attempts=5
     )
 
-    # 输出结果
     if is_solve_success:
-        print("成功执行启发式算法，结果如下：")
-        print(best_solution_output)
+        print("\n=== 求解成功 ===\n", output)
     else:
-        print("启发式算法执行失败。")
+        print("\n=== 求解失败 ===")
