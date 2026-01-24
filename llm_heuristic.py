@@ -369,7 +369,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('Plugin 初始化成功')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('Solver 初始化成功')\n"
-            "        best_sol, best_cost = solver.solve(max_iters=120)\n"
+            "        best_sol, best_cost = solver.solve_multi_run(max_iters=150, num_runs=5, base_seed=42)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"

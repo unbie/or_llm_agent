@@ -22,16 +22,52 @@ class HeuristicSolver:
         from utils import FreshnessAndPenaltyCalculator
         self.calculator = FreshnessAndPenaltyCalculator(data)
         
-        # ALNS 算子权重管理（从 plugin 移到 solver）
+        # ALNS 算子权重管理
         self.destroy_ops = [self.plugin.random_removal, self.plugin.worst_removal]
+        # 使用 LLM 生成的 greedy_insert（已优化 prompt）
         self.insert_ops = [self.plugin.greedy_insert]
         self.d_weights = [1.0] * len(self.destroy_ops)
-        self.i_weights = [1.0] * len(self.insert_ops)
+        self.i_weights = [1.0]
         self.last_d_idx = 0
         self.last_i_idx = 0
         self.rho = 0.1
         
         print("Solver 初始化成功")
+    
+    def _fallback_greedy_insert(self, solution, removed_nodes):
+        '''备用贪心插入算子（保证正确性）'''
+        if not removed_nodes:
+            return solution
+        if not solution:
+            return [[0, node, 0] for node in removed_nodes]
+        
+        for node in removed_nodes:
+            best_cost = float('inf')
+            best_route_idx = None
+            best_position = None
+            
+            # 搜索现有路径的最佳插入位置
+            for route_idx, route in enumerate(solution):
+                for pos in range(1, len(route)):
+                    prev, next_n = route[pos-1], route[pos]
+                    cost_inc = (self.dist_matrix[prev][node] + 
+                               self.dist_matrix[node][next_n] - 
+                               self.dist_matrix[prev][next_n])
+                    if cost_inc < best_cost:
+                        best_cost = cost_inc
+                        best_route_idx = route_idx
+                        best_position = pos
+            
+            # 计算新建路径成本
+            new_route_cost = self.dist_matrix[0][node] + self.dist_matrix[node][0]
+            
+            # 决策：优先现有路径
+            if best_route_idx is not None and best_cost <= new_route_cost:
+                solution[best_route_idx].insert(best_position, node)
+            else:
+                solution.append([0, node, 0])
+        
+        return solution
     
     def destroy(self, solution, remove_ratio=0.2):
         '''调用 Destroy 算子移除解中的客户节点'''
@@ -56,6 +92,120 @@ class HeuristicSolver:
             self.i_weights[self.last_i_idx] * (1 - self.rho) + reward * self.rho
         )
     
+    def merge_short_routes(self, solution):
+        '''尝试合并短路径以减少车辆数'''
+        if len(solution) <= 1:
+            return solution
+        
+        capacity = self.data.get('vehicle_capacity', 200)
+        merged = True
+        
+        while merged:
+            merged = False
+            # 按路径客户数排序，优先合并短路径
+            solution.sort(key=lambda r: len(r))
+            
+            for i in range(len(solution)):
+                if merged:
+                    break
+                route_i = solution[i]
+                nodes_i = [n for n in route_i if n != 0]
+                if not nodes_i:
+                    continue
+                load_i = sum(self.id_to_customer[n].get('demand', 0) for n in nodes_i)
+                
+                best_merge_saving = 0
+                best_j = -1
+                best_new_route = None
+                
+                for j in range(i + 1, len(solution)):
+                    route_j = solution[j]
+                    nodes_j = [n for n in route_j if n != 0]
+                    if not nodes_j:
+                        continue
+                    load_j = sum(self.id_to_customer[n].get('demand', 0) for n in nodes_j)
+                    
+                    # 检查容量约束
+                    if load_i + load_j > capacity:
+                        continue
+                    
+                    # 尝试多种合并方式，选择最优的
+                    old_cost = self._route_distance(route_i) + self._route_distance(route_j)
+                    
+                    # 方式1: i + j
+                    new_route1 = [0] + nodes_i + nodes_j + [0]
+                    cost1 = self._route_distance(new_route1)
+                    
+                    # 方式2: j + i
+                    new_route2 = [0] + nodes_j + nodes_i + [0]
+                    cost2 = self._route_distance(new_route2)
+                    
+                    # 方式3: i + reverse(j)
+                    new_route3 = [0] + nodes_i + nodes_j[::-1] + [0]
+                    cost3 = self._route_distance(new_route3)
+                    
+                    # 方式4: reverse(i) + j
+                    new_route4 = [0] + nodes_i[::-1] + nodes_j + [0]
+                    cost4 = self._route_distance(new_route4)
+                    
+                    # 选择最优方式
+                    options = [(cost1, new_route1), (cost2, new_route2), 
+                              (cost3, new_route3), (cost4, new_route4)]
+                    best_cost, best_route = min(options, key=lambda x: x[0])
+                    saving = old_cost - best_cost
+                    
+                    if saving > best_merge_saving:
+                        best_merge_saving = saving
+                        best_j = j
+                        best_new_route = best_route
+                
+                # 只有真正节省成本时才合并（saving > 0）
+                if best_j >= 0 and best_merge_saving > 0:
+                    solution[i] = best_new_route
+                    solution.pop(best_j)
+                    merged = True
+        
+        return solution
+    
+    def two_opt_route(self, route):
+        '''对单条路径进行2-opt优化（只考虑距离）'''
+        if len(route) < 4:  # 至少需要 [0, a, b, 0]
+            return route
+        
+        improved = True
+        while improved:
+            improved = False
+            for i in range(1, len(route) - 2):
+                for j in range(i + 1, len(route) - 1):
+                    # 计算反转 route[i:j+1] 的收益
+                    # 原: route[i-1]->route[i] 和 route[j]->route[j+1]
+                    # 新: route[i-1]->route[j] 和 route[i]->route[j+1]
+                    a, b = route[i-1], route[i]
+                    c, d = route[j], route[j+1]
+                    
+                    old_dist = self.dist_matrix[a][b] + self.dist_matrix[c][d]
+                    new_dist = self.dist_matrix[a][c] + self.dist_matrix[b][d]
+                    
+                    if new_dist < old_dist - 0.001:
+                        # 反转 route[i:j+1]
+                        route[i:j+1] = route[i:j+1][::-1]
+                        improved = True
+        
+        return route
+    
+    def local_search(self, solution):
+        '''对整个解进行局部搜索优化'''
+        for idx in range(len(solution)):
+            solution[idx] = self.two_opt_route(solution[idx])
+        return solution
+    
+    def _route_distance(self, route):
+        '''计算单条路径的总距离'''
+        dist = 0
+        for k in range(len(route) - 1):
+            dist += self.dist_matrix[route[k]][route[k+1]]
+        return dist
+
     def _build_distance_matrix(self):
         '''构建距离矩阵'''
         n = len(self.customers)
@@ -146,9 +296,18 @@ class HeuristicSolver:
         
         return True
     
-    def solve(self, max_iters=100):
-        '''ALNS 求解器'''
-        print("[初始化] 开始生成初始解...")
+    def solve(self, max_iters=300, seed=None):
+        '''ALNS 求解器
+        
+        Args:
+            max_iters: 最大迭代次数
+            seed: 随机种子（设置后结果可重复）
+        '''
+        if seed is not None:
+            random.seed(seed)
+            print(f"[初始化] 随机种子: {seed}")
+        
+        print(f"[初始化] 开始生成初始解... (迭代次数: {max_iters})")
         
         non_depot = [c for c in self.customers if c['id'] != 0]
         capacity = self.data.get('vehicle_capacity', 200)
@@ -243,31 +402,44 @@ class HeuristicSolver:
         
         print("[ALNS] 开始迭代优化...\n")
         
-        # 优化后的ALNS参数
-        T = max(current_cost * 0.05, 50) if current_cost < float('inf') else 500  # 降低初始温度
-        alpha = 0.995  # 更慢的冷却速度
+        # ALNS参数 - 贪心为主，适度探索
+        T = max(current_cost * 0.01, 20) if current_cost < float('inf') else 100  # 低温度
+        alpha = 0.995  # 缓慢冷却
         improvement_count = 0
-        no_improve_count = 0  # 连续无改善计数
+        no_improve_count = 0
+        last_improve_iter = 0
         
         for iteration in range(max_iters):
             temp_solution = copy.deepcopy(current_solution)
             
-            # 自适应移除比例：长时间无改善时增加移除量
-            if no_improve_count > 20:
-                base_remove = max(2, int(len(non_depot) * 0.15))
-                max_remove = max(4, int(len(non_depot) * 0.4))
+            # 小幅扰动，保持解质量稳定
+            if no_improve_count > 80:
+                # 长时间无改善，稍增加扰动
+                base_remove = max(2, int(len(non_depot) * 0.05))
+                max_remove = max(5, int(len(non_depot) * 0.15))
+            elif no_improve_count > 40:
+                # 中等扰动
+                base_remove = max(2, int(len(non_depot) * 0.04))
+                max_remove = max(4, int(len(non_depot) * 0.1))
             else:
-                base_remove = max(1, int(len(non_depot) * 0.05))  # 减少移除量
-                max_remove = max(2, int(len(non_depot) * 0.2))
+                # 小步优化（默认）
+                base_remove = max(1, int(len(non_depot) * 0.02))
+                max_remove = max(3, int(len(non_depot) * 0.06))
             num_remove = random.randint(base_remove, max_remove)
             
             try:
                 partial, removed_ids = self.destroy(temp_solution, num_remove)
+                routes_after_destroy = len(partial)
                 
                 if removed_ids:
                     new_solution = self.insert(partial, removed_ids)
                 else:
                     new_solution = partial
+                
+                routes_after_insert = len(new_solution)
+                
+                # 禁用迭代中的2-opt（可能破坏时间窗）
+                # 让ALNS自然优化
                 
                 new_cost = self.cost(new_solution)
             except Exception as e:
@@ -286,6 +458,7 @@ class HeuristicSolver:
                     best_solution = copy.deepcopy(new_solution)
                     best_cost = new_cost
                     improvement_count += 1
+                    last_improve_iter = iteration
                     print(f"[迭代 {iteration:3d}] ✓ 新最优解! 成本: {best_cost:.2f}, 路径数: {len(best_solution)}")
                 
                 self.update_weights(reward=3.0)
@@ -306,19 +479,69 @@ class HeuristicSolver:
             
             T *= alpha
             
-            # 早停：连续50次无改善且温度已经很低
-            if no_improve_count > 50 and T < 1.0:
-                print(f"[迭代 {iteration:3d}] 早停：连续{no_improve_count}次无改善")
-                break
+            # 重启机制：连续60次无改善时重启到最优解
+            if no_improve_count > 60:
+                current_solution = copy.deepcopy(best_solution)
+                current_cost = best_cost
+                no_improve_count = 0
+                T = max(best_cost * 0.01, 10)  # 重置温度
+                print(f"[迭代 {iteration:3d}] 重启到最优解")
             
-            if (iteration + 1) % 20 == 0:
+            if (iteration + 1) % 40 == 0:
                 print(f"[迭代 {iteration+1:3d}] 当前: {current_cost:.2f}, 最优: {best_cost:.2f}, 温度: {T:.2f}, 路径数: {len(current_solution)}")
+        
+        # 尝试2-opt优化，但只在成本改善时才保留
+        optimized_solution = self.local_search(copy.deepcopy(best_solution))
+        optimized_cost = self.cost(optimized_solution)
+        if optimized_cost < best_cost:
+            best_solution = optimized_solution
+            best_cost = optimized_cost
+            print(f"[后处理] 2-opt优化成功: {best_cost:.2f}")
         
         print(f"\n{'='*60}")
         print("[最终结果] 最优成本: " + (f"{best_cost:.2f}" if best_cost < float('inf') else "INF"))
         print(f"[最终结果] 路径数量: {len(best_solution)}")
         print(f"[最终结果] 改善次数: {improvement_count}")
+        print(f"[最终结果] 最后改善迭代: {last_improve_iter}")
         print(f"{'='*60}\n")
         
         return best_solution, best_cost
+    
+    def solve_multi_run(self, max_iters=300, num_runs=3, base_seed=42):
+        '''多次运行取最优解
+        
+        Args:
+            max_iters: 每次运行的迭代次数
+            num_runs: 运行次数
+            base_seed: 基础随机种子（确保可重复）
+        '''
+        best_overall = float('inf')
+        best_sol_overall = None
+        all_costs = []
+        
+        for run in range(num_runs):
+            print(f"\n{'#'*60}")
+            print(f"# 第 {run+1}/{num_runs} 次运行")
+            print(f"{'#'*60}")
+            
+            # 每次使用不同但可控的种子
+            sol, cost = self.solve(max_iters=max_iters, seed=base_seed + run)
+            all_costs.append(cost)
+            
+            if cost < best_overall:
+                best_overall = cost
+                best_sol_overall = copy.deepcopy(sol)
+                print(f"*** 发现更优解: {cost:.2f} ***")
+        
+        avg_cost = sum(all_costs) / len(all_costs)
+        
+        print(f"\n{'='*60}")
+        print(f"[多次运行最终结果]")
+        print(f"  最优成本: {best_overall:.2f}")
+        print(f"  平均成本: {avg_cost:.2f}")
+        print(f"  路径数量: {len(best_sol_overall)}")
+        print(f"  各次成本: {[f'{c:.2f}' for c in all_costs]}")
+        print(f"{'='*60}\n")
+        
+        return best_sol_overall, best_overall
 """

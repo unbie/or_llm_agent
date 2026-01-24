@@ -39,69 +39,53 @@ HEURISTIC_PLUGIN_TEMPLATE = """
        * 如果没有可计算贡献的节点（node_contributions 为空），返回 solution, []
    - 返回修改后的 solution 和 removed_nodes 列表。
 
-【greedy_insert】：
-   - 对每个待插入节点，优先插入现有路径，新建路径仅作为兜底
+【greedy_insert】- 最关键的算子，直接影响解的质量
    
-   - **算法思路**：
-     1. 在所有现有路径中搜索最佳插入位置（成本增量最小）
-     2. 将最佳插入成本与新建路径成本比较
-     3. 如果现有路径更优或相同，插入现有路径；否则新建路径
+   **目标**：将节点插入成本最小的位置，优先利用现有路径，减少车辆数
    
-   - **插入位置**：range(1, len(route))
-     增量 = dist[prev][node] + dist[node][next] - dist[prev][next]
+   **强制执行的代码结构**（必须严格按此顺序）：
    
-   - **新建路径成本**：dist[0][node] + dist[node][0]（作为兜底比较）
+   ```
+   for node in removed_nodes:
+       # ===== 检查点1: 必须先初始化为无穷大 =====
+       best_cost = float('inf')   # 不是0，不是new_route_cost，必须是inf
+       best_route_idx = None
+       best_position = None
+       
+       # ===== 检查点2: 先搜索所有现有路径 =====
+       for route_idx, route in enumerate(solution):
+           for pos in range(1, len(route)):
+               prev = route[pos-1]
+               next_node = route[pos]
+               cost_increase = dist[prev][node] + dist[node][next_node] - dist[prev][next_node]
+               if cost_increase < best_cost:  # 用 < 更新最佳
+                   best_cost = cost_increase
+                   best_route_idx = route_idx
+                   best_position = pos
+       
+       # ===== 检查点3: 搜索完成后才计算新建成本 =====
+       new_route_cost = dist[0][node] + dist[node][0]
+       
+       # ===== 检查点4: 用 <= 比较，优先现有路径 =====
+       if best_route_idx is not None and best_cost <= new_route_cost:
+           solution[best_route_idx].insert(best_position, node)
+       else:
+           solution.append([0, node, 0])
+   ```
    
-   - **选择规则**：best_cost <= new_route_cost 时插入现有路径
-     （用 <= 确保成本相同时优先现有路径，减少车辆数）
-   
-   - **边界情况**：
-     * removed_nodes 为空：返回 solution
-     * solution 为空：为每个节点新建 [0, node, 0]
-
-【greedy_insert 参考实现 - 必须严格按此逻辑】：
-```python
-def greedy_insert(self, solution, removed_nodes):
-    if not removed_nodes:
-        return solution
-    if not solution:
-        return [[0, node, 0] for node in removed_nodes]
-    
-    for node in removed_nodes:
-        best_cost = float('inf')  # 步骤a: 初始化为无穷大
-        best_route_idx = None
-        best_position = None
-        
-        # 步骤b: 遍历所有现有路径的插入位置
-        for route_idx, route in enumerate(solution):
-            for pos in range(1, len(route)):
-                prev, next_node = route[pos-1], route[pos]
-                cost_increase = (self.dist_matrix[prev][node] + 
-                                self.dist_matrix[node][next_node] - 
-                                self.dist_matrix[prev][next_node])
-                if cost_increase < best_cost:
-                    best_cost = cost_increase
-                    best_route_idx = route_idx
-                    best_position = pos
-        
-        # 步骤c: 计算新建路径成本
-        new_route_cost = self.dist_matrix[0][node] + self.dist_matrix[node][0]
-        
-        # 步骤d: 比较并选择（<= 优先现有路径）
-        if best_route_idx is not None and best_cost <= new_route_cost:
-            solution[best_route_idx].insert(best_position, node)
-        else:
-            solution.append([0, node, 0])
-    
-    return solution
-```
+   **自检问题**（生成代码前回答）：
+   Q1: best_cost 初始值是什么？ → 必须是 float('inf')
+   Q2: 何时计算 new_route_cost？ → 搜索完所有现有路径之后
+   Q3: 比较时用 < 还是 <=？ → 必须用 <=（相等时优先现有路径）
 
 3. 注意事项：
    - 移除节点和插入节点时都要确保 solution 的合法性。
    - 避免在循环中直接删除路径导致索引错误（使用列表推导式过滤空路径）。
    - **框架已做深拷贝**，算子内部可以直接修改 solution，无需再次深拷贝。
    - **禁止实现** cost()、validate()、check_feasible() 方法。
-   - 请生成完整可运行的 Python 函数，补充以下的TODO部分。4. 必须导入的模块：
+   - 请生成完整可运行的 Python 函数，补充以下的TODO部分。
+
+4. 必须导入的模块：
    import random
    import math  # 用于 math.ceil()
 
@@ -221,16 +205,11 @@ class HeuristicPlugin:
     # -----------------------------
     # Insert 算子
     # -----------------------------
-    # greedy_insert 核心逻辑：
-    #   1. 边界检查
-    #   2. 对每个节点，遍历所有候选位置，记录最小成本及位置
-    #   3. 候选位置包括：现有路径插入位置 + 新建路径
-    #   4. 选择成本最小的位置执行插入
-    #   5. 成本相同时优先现有路径（用 <= 比较）
     
     def greedy_insert(self, solution, removed_nodes):
         '''
         贪心插入节点到成本增量最小的位置。
+        优先插入现有路径，新建路径仅作为兜底。
         
         Args:
             solution: 部分解（已移除节点的路径列表）
@@ -239,20 +218,24 @@ class HeuristicPlugin:
         Returns:
             插入所有节点后的完整解
         '''
-        # TODO: 实现贪心插入逻辑
-        # 
-        # 实现要点：
-        # 1. if not removed_nodes: return solution
-        # 2. if not solution: 为每个节点创建 [0, node, 0]
-        # 3. 对每个 node:
-        #    a. best_cost = float('inf'), best_route_idx = None, best_position = None
-        #    b. 遍历所有路径的所有插入位置 range(1, len(route))
-        #       计算 cost_increase，如果 < best_cost 则更新
-        #    c. 计算 new_route_cost = dist[0][node] + dist[node][0]
-        #    d. 如果 best_route_idx is not None 且 best_cost <= new_route_cost:
-        #          插入现有路径
-        #       否则:
-        #          新建路径 [0, node, 0]
+        # TODO: 按以下顺序实现
+        #
+        # 边界处理:
+        #   - removed_nodes 为空 → return solution
+        #   - solution 为空 → 为每个节点创建 [0, node, 0]
+        #
+        # 对每个 node 循环:
+        #   步骤1: best_cost = float('inf')  # 必须初始化为无穷大！
+        #   步骤2: 遍历所有现有路径的插入位置，找成本增量最小的
+        #   步骤3: new_route_cost = dist[0][node] + dist[node][0]
+        #   步骤4: if best_cost <= new_route_cost: 插入现有路径
+        #          else: 新建路径
+        #
+        # ⚠️ 错误示例（不要这样做）：
+        #   new_route_cost = dist[0][node] + dist[node][0]
+        #   best_cost = new_route_cost  # 错！会导致永远新建路径
+        #
+        # ✓ 正确顺序: 初始化∞ → 搜索现有 → 计算新建 → 比较(<=)决策
         # 4. return solution
         pass
 """
