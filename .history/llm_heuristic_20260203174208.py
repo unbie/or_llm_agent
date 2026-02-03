@@ -288,7 +288,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve_multi_run(max_iters=1000, num_runs=5, base_seed=42)\n"
+            "        best_sol, best_cost = solver.solve_multi_run(max_iters=300, num_runs=1, base_seed=42)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -439,7 +439,7 @@ def visualize_results(dataset, solution, best_cost, output):
     
     if cost_history and best_history and iterations:
         # 计算移动平均，平滑曲线
-        window_size = max(5, len(cost_history) // 10)  # 窗口大小为10%的数据点（更平滑）
+        window_size = max(3, len(cost_history) // 20)  # 窗口大小为5%的数据点
         
         def moving_average(data, window):
             if len(data) < window:
@@ -453,10 +453,12 @@ def visualize_results(dataset, solution, best_cost, output):
         
         cost_smooth = moving_average(cost_history, window_size)
         
-        # 显示原始当前成本（淡）+ 平滑趋势 + 最优成本
-        ax1.plot(iterations, cost_history, color='steelblue', linewidth=1.0, alpha=0.25, label='当前成本（原始）')
-        ax1.plot(iterations, cost_smooth, 'b-', linewidth=2.2, label='当前成本（平滑）', alpha=0.9)
-        ax1.plot(iterations, best_history, 'r-', linewidth=2.4, label='最优成本')
+        # 显示平滑后的当前成本与最优成本曲线
+        ax1.plot(iterations, cost_smooth, 'b-', linewidth=2.2, label='当前成本（平滑）', alpha=0.8)
+        ax1.plot(iterations, best_history, 'r-', linewidth=2.8, label='最优成本', marker='o', markersize=2.5, markevery=max(1, len(iterations)//15))
+        
+        # 填充区域，展示探索范围
+        ax1.fill_between(iterations, cost_smooth, best_history, alpha=0.12, color='blue', label='探索空间')
         
         # 优化y轴范围
         min_cost = min(min(best_history), min(cost_smooth))
@@ -472,30 +474,15 @@ def visualize_results(dataset, solution, best_cost, output):
         ax1.legend(fontsize=10, loc='upper right')
         ax1.grid(True, alpha=0.25, linestyle='--', linewidth=0.5)
         
-        # 标注关键点：初始、最终、最优
-        start_idx = 0
-        end_idx = len(iterations) - 1
+        # 标注最优值
         min_idx = best_history.index(min(best_history))
-        
-        ax1.plot(iterations[start_idx], cost_smooth[start_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'初始: {cost_smooth[start_idx]:.2f}',
-                xy=(iterations[start_idx], cost_smooth[start_idx]),
-                xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
-        
-        ax1.plot(iterations[end_idx], cost_smooth[end_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'最终: {cost_smooth[end_idx]:.2f}',
-                xy=(iterations[end_idx], cost_smooth[end_idx]),
-                xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
-        
-        ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=18, zorder=6, markeredgecolor='darkred', markeredgewidth=2.0)
+        ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=20, zorder=5, markeredgecolor='darkred', markeredgewidth=2.5)
         ax1.annotate(f'最优: {best_history[min_idx]:.2f}', 
-                xy=(iterations[min_idx], best_history[min_idx]),
-                xytext=(15, 15), textcoords='offset points',
-                fontsize=11, color='darkred', fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.85, edgecolor='red', linewidth=2),
-                arrowprops=dict(arrowstyle='->', color='red', lw=2))
+                    xy=(iterations[min_idx], best_history[min_idx]),
+                    xytext=(20, 20), textcoords='offset points',
+                    fontsize=12, color='darkred', fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.7', facecolor='yellow', alpha=0.9, edgecolor='red', linewidth=2.5),
+                    arrowprops=dict(arrowstyle='->', color='red', lw=2.5))
     else:
         ax1.text(0.5, 0.5, '无迭代数据', 
                 ha='center', va='center', transform=ax1.transAxes, fontsize=14)

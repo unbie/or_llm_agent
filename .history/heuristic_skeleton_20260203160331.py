@@ -928,14 +928,15 @@ class HeuristicSolver:
         
         print("[ALNS] 开始迭代优化...\n")
         
-        # ALNS参数 - 平衡探索与利用
-        # 使用适中的初始温度，避免前期成本飙升
-        T = max(current_cost * 0.05, 80) if current_cost < float('inf') else 100  # 初始温度（能接受差5%的解）
+        # ALNS参数 - 根据迭代次数自适应调整
+        # 增加初始温度，让算法前期有足够的探索能力
+        T = max(current_cost * 0.10, 100) if current_cost < float('inf') else 150  # 初始温度（能接受差10%的解）
         
-        # 自适应冷却系数：线性冷却策略
-        # 目标：平滑地从探索过渡到利用
-        target_ratio = 0.02  # 最终温度为初始温度的2%
-        alpha = target_ratio ** (1.0 / max_iters)  # 在max_iters次迭代后达到目标温度
+        # 自适应冷却系数：确保温度在90%迭代后仍有探索能力
+        # alpha = (T_final / T_initial) ^ (1 / max_iters)
+        # 目标：在max_iters的90%处，温度降到初始的5%（增加探索时间）
+        target_ratio = 0.05  # 最终温度为初始温度的5%
+        alpha = target_ratio ** (1.0 / (max_iters * 0.9))
         
         print(f"[参数] 初始温度: {T:.2f}, 冷却系数: {alpha:.6f}, 迭代次数: {max_iters}")
         
@@ -944,30 +945,30 @@ class HeuristicSolver:
         last_improve_iter = 0
         
         # 评估周期和重启阈值与迭代次数成比例
-        segment_size = max(50, int(max_iters * 0.25))  # 每25%迭代调整一次权重
-        restart_threshold = max(60, int(max_iters * 0.4))  # 40%迭代无改善时重启（更宽容）
+        segment_size = max(50, int(max_iters * 0.2))  # 每20%迭代调整一次权重
+        restart_threshold = max(50, int(max_iters * 0.3))  # 30%迭代无改善时重启（增加容忍度）
         
         for iteration in range(max_iters):
             self.current_iteration = iteration  # 更新当前迭代次数（用于history_removal）
             temp_solution = copy.deepcopy(current_solution)
             
-            # 自适应破坏程度 - 使用保守策略避免成本暴涨
+            # 自适应破坏程度（文档推荐20%-40%）
             # 阈值与总迭代次数成比例
             threshold_medium = max_iters * 0.27  # ~27%无改善
             threshold_high = max_iters * 0.53    # ~53%无改善
             
             if no_improve_count > threshold_high:
-                # 长时间无改善，适度增大扰动到25%
+                # 长时间无改善，增大扰动到40%
+                base_remove = max(3, int(len(non_depot) * 0.25))
+                max_remove = max(8, int(len(non_depot) * 0.40))
+            elif no_improve_count > threshold_medium:
+                # 中等扰动30%
+                base_remove = max(2, int(len(non_depot) * 0.20))
+                max_remove = max(6, int(len(non_depot) * 0.30))
+            else:
+                # 小步优化（默认20%-25%）
                 base_remove = max(2, int(len(non_depot) * 0.15))
                 max_remove = max(4, int(len(non_depot) * 0.25))
-            elif no_improve_count > threshold_medium:
-                # 中等扰动15%
-                base_remove = max(2, int(len(non_depot) * 0.10))
-                max_remove = max(3, int(len(non_depot) * 0.15))
-            else:
-                # 小步优化（默认8%-12%）
-                base_remove = max(1, int(len(non_depot) * 0.06))
-                max_remove = max(2, int(len(non_depot) * 0.12))
             num_remove = random.randint(base_remove, max_remove)
             
             try:
@@ -1013,21 +1014,16 @@ class HeuristicSolver:
                     self.update_weights(reward='improved')  # σ₂=9
             
             elif T > 0.01 and delta < float('inf'):  # 降低温度下限，让后期也能接受差解
-                # 添加成本上限保护：不接受比初始解差太多的解
-                cost_limit = max(current_cost * 1.5, best_cost * 2.0)  # 最多接受50%差的解
-                
-                if new_cost <= cost_limit:
-                    accept_prob = math.exp(-delta / T)
-                    if random.random() < accept_prob:
-                        current_solution = new_solution
-                        current_cost = new_cost
-                        self.update_weights(reward='accepted')  # σ₃=3
-                        no_improve_count += 1
-                    else:
-                        self.update_weights(reward='rejected')  # σ₄=0
-                        no_improve_count += 1
+                accept_prob = math.exp(-delta / T)
+                if random.random() < accept_prob:
+                    current_solution = new_solution
+                    current_cost = new_cost
+                    self.update_weights(reward='accepted')  # σ₃=3
+                    no_improve_count += 1
+                    # 每50次迭代输出一次接受信息，观察探索行为
+                    if (iteration + 1) % 50 == 0:
+                        print(f"[迭代 {iteration:3d}] 接受差解 Δ={delta:.1f}, P={accept_prob:.3f}, T={T:.1f}")
                 else:
-                    # 超出成本上限，直接拒绝
                     self.update_weights(reward='rejected')  # σ₄=0
                     no_improve_count += 1
             else:
@@ -1051,8 +1047,8 @@ class HeuristicSolver:
                 current_solution = copy.deepcopy(best_solution)
                 current_cost = best_cost
                 no_improve_count = 0
-                # 再加热：恢复到初始温度的30%，避免过度探索
-                T = max(best_cost * 0.05, 80) * 0.3  
+                # 再加热：恢复到初始温度的50%，确保有足够探索能力
+                T = max(best_cost * 0.10, 100) * 0.5  
                 print(f"[迭代 {iteration:3d}] 重启到最优解（再加热T={T:.1f}，阈值={restart_threshold}）")
             
             # 周期性权重归一化（每 segment_size 轮）
@@ -1067,7 +1063,7 @@ class HeuristicSolver:
                 if i_sum > 0:
                     self.i_weights = [w / i_sum * len(self.i_weights) for w in self.i_weights]
             
-            if (iteration + 1) % 5 == 0:
+            if (iteration + 1) % 10 == 0:
                 # 输出格式：Iter N: Current=XXX, Best=YYY (方便提取用于可视化)
                 print(f"Iter {iteration+1:3d}: Current={current_cost:.2f}, Best={best_cost:.2f}, Temp={T:.2f}, Routes={len(current_solution)}")
         

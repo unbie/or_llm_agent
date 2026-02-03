@@ -1,25 +1,18 @@
 HEURISTIC_PLUGIN_TEMPLATE = """
 你是一个熟悉 ALNS 算法的 Python 工程师，请实现生鲜物流 VRP 问题的启发式算子。
 
-【重要】只需实现5个算子，不要实现更多！
-
-【优化算子配置】：
-必须实现的算子（共5个）：
-1. random_removal   - 随机分散破坏
-2. route_removal    - 整条路径破坏
-3. string_removal   - 连续节点破坏
-4. greedy_insert    - 贪心修复
-5. regret_insert    - 后悔修复
-
-不要实现worst_removal、related_removal、shaw_removal、history_removal、cluster_removal、random_insert等其他算子！
-
 【核心要求】：
 - 所有代码必须完整实现（不能有pass、TODO或空函数）
 - 处理边界条件（空列表、防止越界）
 - 降序移除避免索引错误
 - 检查容量约束
 
-注意：所有破坏算子都是random策略的变种，简单易实现
+【优化算子配置】：
+ALNS简化配置（5个算子，保持简单但有区分度）：
+- 破坏算子（Destroy）：3个 - random_removal、route_removal、string_removal
+- 修复算子（Repair）：2个 - greedy_insert、regret_insert
+
+注意：所有破坏算子都是random策略的变种，容易实现且效果好
 
 【数据结构】：
    - solution: [[0, node1, node2, 0], [0, node3, 0], ...]（0是仓库）

@@ -387,13 +387,14 @@ def extract_iteration_history(output):
     iterations = []
     cost_history = []
     best_history = []
+    temp_history = []
     
-    # 查找迭代信息，格式如: "Iter 10: Current=1234.56, Best=1200.00"
-    iter_pattern = r'Iter\s+(\d+):\s+Current=([\d.]+),\s+Best=([\d.]+)'
+    # 查找迭代信息，格式如: "Iter 10: Current=1234.56, Best=1200.00, Temp=50.00"
+    iter_pattern = r'Iter\s+(\d+):\s+Current=([\d.]+),\s+Best=([\d.]+),\s+Temp=([\d.]+)'
     matches = re.findall(iter_pattern, output)
     
     if not matches:
-        return iterations, cost_history, best_history
+        return iterations, cost_history, best_history, temp_history
     
     # 检测运行边界：当迭代次数重置（从大到小）时，说明开始新一轮
     all_runs = []
@@ -408,7 +409,7 @@ def extract_iteration_history(output):
             all_runs.append(current_run)
             current_run = []
         
-        current_run.append((iter_num, float(current_cost), float(best_cost)))
+        current_run.append((iter_num, float(current_cost), float(best_cost), float(match[3])))
     
     # 添加最后一轮
     if current_run:
@@ -420,8 +421,9 @@ def extract_iteration_history(output):
         iterations = [item[0] for item in last_run]
         cost_history = [item[1] for item in last_run]
         best_history = [item[2] for item in last_run]
+        temp_history = [item[3] for item in last_run]
     
-    return iterations, cost_history, best_history
+    return iterations, cost_history, best_history, temp_history
 
 def visualize_results(dataset, solution, best_cost, output):
     """生成可视化图表"""
@@ -435,7 +437,7 @@ def visualize_results(dataset, solution, best_cost, output):
     
     # 子图1: 迭代历史
     ax1 = plt.subplot(1, 3, 1)
-    iterations, cost_history, best_history = extract_iteration_history(output)
+    iterations, cost_history, best_history, temp_history = extract_iteration_history(output)
     
     if cost_history and best_history and iterations:
         # 计算移动平均，平滑曲线
@@ -476,18 +478,21 @@ def visualize_results(dataset, solution, best_cost, output):
         start_idx = 0
         end_idx = len(iterations) - 1
         min_idx = best_history.index(min(best_history))
+        initial_cost = cost_smooth[start_idx]
+        final_best = best_history[end_idx]
+        improvement = (initial_cost - final_best) / initial_cost * 100 if initial_cost > 0 else 0.0
         
         ax1.plot(iterations[start_idx], cost_smooth[start_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'初始: {cost_smooth[start_idx]:.2f}',
+        ax1.annotate(f'初始: {initial_cost:.2f}',
                 xy=(iterations[start_idx], cost_smooth[start_idx]),
                 xytext=(12, -16), textcoords='offset points',
                 fontsize=10, color='navy')
         
-        ax1.plot(iterations[end_idx], cost_smooth[end_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'最终: {cost_smooth[end_idx]:.2f}',
-                xy=(iterations[end_idx], cost_smooth[end_idx]),
-                xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
+        ax1.plot(iterations[end_idx], final_best, 'o', color='darkred', markersize=6, zorder=5)
+        ax1.annotate(f'最终最优: {final_best:.2f}',
+            xy=(iterations[end_idx], final_best),
+            xytext=(12, -16), textcoords='offset points',
+            fontsize=10, color='darkred')
         
         ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=18, zorder=6, markeredgecolor='darkred', markeredgewidth=2.0)
         ax1.annotate(f'最优: {best_history[min_idx]:.2f}', 
@@ -496,6 +501,21 @@ def visualize_results(dataset, solution, best_cost, output):
                 fontsize=11, color='darkred', fontweight='bold',
                 bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.85, edgecolor='red', linewidth=2),
                 arrowprops=dict(arrowstyle='->', color='red', lw=2))
+
+        # 右轴：温度曲线（解释U型形成原因）
+        if temp_history and len(temp_history) == len(iterations):
+            ax1b = ax1.twinx()
+            ax1b.plot(iterations, temp_history, color='gray', linewidth=1.2, alpha=0.5, linestyle='--', label='温度')
+            ax1b.set_ylabel('温度', fontsize=11, color='gray')
+            ax1b.tick_params(axis='y', labelcolor='gray')
+
+        # 统计文本：改进幅度
+        ax1.text(0.02, 0.95,
+                 f"改进幅度: {improvement:.2f}%",
+                 transform=ax1.transAxes,
+                 fontsize=10,
+                 color='black',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='lightgray'))
     else:
         ax1.text(0.5, 0.5, '无迭代数据', 
                 ha='center', va='center', transform=ax1.transAxes, fontsize=14)

@@ -22,16 +22,20 @@ class HeuristicSolver:
         from utils import FreshnessAndPenaltyCalculator
         self.calculator = FreshnessAndPenaltyCalculator(data)
         
-        # ALNS 算子权重管理 - 简化配置：3个破坏算子，2个修复算子
+        # ALNS 算子权重管理 - 按文档推荐配置：6个破坏算子，3个修复算子
         self.destroy_ops = [
-            self.plugin.random_removal,    # 分散破坏
-            self.plugin.route_removal,     # 路径级破坏
-            self.plugin.string_removal     # 连续节点破坏
+            self.plugin.random_removal, 
+            self.plugin.worst_removal,
+            self.plugin.related_removal,
+            self.plugin.shaw_removal,
+            self.plugin.history_removal,
+            self.plugin.cluster_removal
         ]
-        # 修复算子：贪心、后悔
+        # 修复算子：贪心、后悔、随机
         self.insert_ops = [
             self.plugin.greedy_insert,
-            self.plugin.regret_insert
+            self.plugin.regret_insert,
+            self.plugin.random_insert
         ]
         self.d_weights = [1.0] * len(self.destroy_ops)
         self.i_weights = [1.0] * len(self.insert_ops)
@@ -55,66 +59,24 @@ class HeuristicSolver:
         self.node_history = {c['id']: 0 for c in self.customers if c['id'] != 0}
         self.current_iteration = 0
         
-        # 将历史记录注入到 plugin（供 history_removal 使用）
-        self.plugin.node_history = self.node_history
-        self.plugin.solver = self  # 让 plugin 可以访问 solver
-        
-        # 记录和可视化（技巧5）
-        self.cost_history = []  # 目标函数值变化曲线
-        self.best_cost_history = []  # 最优成本变化曲线
-        self.weight_history = {'destroy': [], 'insert': []}  # 权重变化曲线
-        
-        # 候选集限制参数（技巧4：加速计算）
-        self.candidate_list_size = 10  # 只考虑最近的K个位置
-        
         print("Solver 初始化成功")
     
     def _fallback_greedy_insert(self, solution, removed_nodes):
-        '''备用贪心插入算子（保证正确性）
-        
-        技巧4优化：使用候选集限制加速计算
-        '''
+        '''备用贪心插入算子（保证正确性）'''
         if not removed_nodes:
             return solution
         if not solution:
             return [[0, node, 0] for node in removed_nodes]
         
-        capacity = self.data.get('vehicle_capacity', 200)
-        
         for node in removed_nodes:
-            node_demand = self.id_to_customer[node].get('demand', 0)
             best_cost = float('inf')
             best_route_idx = None
             best_position = None
             
-            # ===== 技巧4：候选集限制 =====
-            # 计算节点到各路径的最近距离，只考虑最近的K条路径
-            if len(solution) > self.candidate_list_size:
-                # 计算每条路径与当前节点的最近距离
-                route_distances = []
-                for route_idx, route in enumerate(solution):
-                    min_dist = min(self.dist_matrix[node][n] for n in route if n != 0) if any(n != 0 for n in route) else float('inf')
-                    route_distances.append((route_idx, min_dist))
-                
-                # 只保留最近的K条路径
-                route_distances.sort(key=lambda x: x[1])
-                candidate_routes = [rd[0] for rd in route_distances[:self.candidate_list_size]]
-            else:
-                candidate_routes = list(range(len(solution)))
-            
-            # 只在候选路径中搜索最佳插入位置
-            for route_idx in candidate_routes:
-                route = solution[route_idx]
-                
-                # 检查容量约束
-                current_load = sum(self.id_to_customer[n].get('demand', 0) 
-                                  for n in route if n != 0)
-                if current_load + node_demand > capacity:
-                    continue
-                
+            # 搜索现有路径的最佳插入位置
+            for route_idx, route in enumerate(solution):
                 for pos in range(1, len(route)):
                     prev, next_n = route[pos-1], route[pos]
-                    # 增量计算（技巧4）
                     cost_inc = (self.dist_matrix[prev][node] + 
                                self.dist_matrix[node][next_n] - 
                                self.dist_matrix[prev][next_n])
@@ -123,8 +85,11 @@ class HeuristicSolver:
                         best_route_idx = route_idx
                         best_position = pos
             
+            # 计算新建路径成本
+            new_route_cost = self.dist_matrix[0][node] + self.dist_matrix[node][0]
+            
             # 决策：优先现有路径
-            if best_route_idx is not None:
+            if best_route_idx is not None and best_cost <= new_route_cost:
                 solution[best_route_idx].insert(best_position, node)
             else:
                 solution.append([0, node, 0])
@@ -138,7 +103,6 @@ class HeuristicSolver:
         if not solution:
             return [[0, node, 0] for node in removed_nodes]
         
-        capacity = self.data.get('vehicle_capacity', 200)
         remaining = list(removed_nodes)
         
         while remaining:
@@ -148,18 +112,11 @@ class HeuristicSolver:
             best_position = None
             
             for node in remaining:
-                node_demand = self.id_to_customer[node].get('demand', 0)
                 # 收集所有插入位置的成本
                 costs = []
                 
                 # 现有路径的位置
                 for route_idx, route in enumerate(solution):
-                    # 检查容量约束
-                    current_load = sum(self.id_to_customer[n].get('demand', 0) 
-                                      for n in route if n != 0)
-                    if current_load + node_demand > capacity:
-                        continue
-                    
                     for pos in range(1, len(route)):
                         prev, next_n = route[pos-1], route[pos]
                         cost_inc = (self.dist_matrix[prev][node] + 
@@ -202,19 +159,10 @@ class HeuristicSolver:
         if not solution:
             return [[0, node, 0] for node in removed_nodes]
         
-        capacity = self.data.get('vehicle_capacity', 200)
-        
         for node in removed_nodes:
-            node_demand = self.id_to_customer[node].get('demand', 0)
             # 收集所有可行位置
             positions = []
             for route_idx, route in enumerate(solution):
-                # 检查容量约束
-                current_load = sum(self.id_to_customer[n].get('demand', 0) 
-                                  for n in route if n != 0)
-                if current_load + node_demand > capacity:
-                    continue
-                
                 for pos in range(1, len(route)):
                     positions.append((route_idx, pos))
             
@@ -231,328 +179,19 @@ class HeuristicSolver:
         
         return solution
     
-    def _fallback_related_removal(self, solution, ratio):
-        '''备用关联破坏算子'''
-        # 收集所有非0节点
-        all_nodes = []
-        for route_idx, route in enumerate(solution):
-            for pos_idx, node in enumerate(route):
-                if node != 0:
-                    all_nodes.append((route_idx, pos_idx, node))
-        
-        if not all_nodes:
-            return solution, []
-        
-        # 计算移除数量
-        if ratio <= 1.0:
-            n = max(1, math.ceil(len(all_nodes) * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, len(all_nodes))
-        
-        # 随机选择种子节点
-        seed_info = random.choice(all_nodes)
-        seed_node = seed_info[2]
-        
-        # 按与种子节点的距离排序
-        all_nodes.sort(key=lambda x: self.dist_matrix[seed_node][x[2]])
-        
-        # 选择最近的n个节点
-        selected = all_nodes[:n]
-        
-        # 降序移除
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        removed_nodes = []
-        for route_idx, pos_idx, node in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        # 过滤空路径
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-    
-    def _fallback_shaw_removal(self, solution, ratio):
-        '''备用Shaw破坏算子'''
-        # 收集所有非0节点
-        all_nodes = []
-        for route_idx, route in enumerate(solution):
-            for pos_idx, node in enumerate(route):
-                if node != 0:
-                    all_nodes.append((route_idx, pos_idx, node))
-        
-        if not all_nodes:
-            return solution, []
-        
-        # 计算移除数量
-        if ratio <= 1.0:
-            n = max(1, math.ceil(len(all_nodes) * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, len(all_nodes))
-        
-        # 随机选择种子节点
-        seed_info = random.choice(all_nodes)
-        seed_node = seed_info[2]
-        seed_customer = self.id_to_customer[seed_node]
-        
-        # 计算最大值用于归一化
-        max_dist = max(self.dist_matrix[seed_node][x[2]] for x in all_nodes) or 1
-        max_demand = max(self.id_to_customer[x[2]].get('demand', 0) for x in all_nodes) or 1
-        max_time = max(abs(self.id_to_customer[x[2]].get('ready_time', 0) - seed_customer.get('ready_time', 0)) for x in all_nodes) or 1
-        
-        # 计算Shaw分数
-        def shaw_score(node_info):
-            node = node_info[2]
-            customer = self.id_to_customer[node]
-            
-            dist_norm = self.dist_matrix[seed_node][node] / max_dist
-            time_diff = abs(customer.get('ready_time', 0) - seed_customer.get('ready_time', 0)) / max_time
-            demand_diff = abs(customer.get('demand', 0) - seed_customer.get('demand', 0)) / max_demand
-            
-            # 权重: φ=9, χ=3, ψ=2
-            return 9 * dist_norm + 3 * time_diff + 2 * demand_diff
-        
-        # 按Shaw分数排序（分数越低越相似）
-        all_nodes.sort(key=shaw_score)
-        
-        # 选择前n个
-        selected = all_nodes[:n]
-        
-        # 降序移除
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        removed_nodes = []
-        for route_idx, pos_idx, node in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        # 过滤空路径
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-    
-    def _fallback_history_removal(self, solution, ratio):
-        '''备用历史破坏算子'''
-        # 收集所有非0节点
-        all_nodes = []
-        for route_idx, route in enumerate(solution):
-            for pos_idx, node in enumerate(route):
-                if node != 0:
-                    all_nodes.append((route_idx, pos_idx, node))
-        
-        if not all_nodes:
-            return solution, []
-        
-        # 计算移除数量
-        if ratio <= 1.0:
-            n = max(1, math.ceil(len(all_nodes) * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, len(all_nodes))
-        
-        # 按历史值排序（值越小表示越久未改动）
-        all_nodes.sort(key=lambda x: self.node_history.get(x[2], 0))
-        
-        # 选择前n个（最久未改动的）
-        selected = all_nodes[:n]
-        
-        # 降序移除
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        removed_nodes = []
-        for route_idx, pos_idx, node in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        # 过滤空路径
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-    
-    def _fallback_cluster_removal(self, solution, ratio):
-        '''备用聚类破坏算子'''
-        # 收集所有非0节点及其坐标
-        all_nodes = []
-        for route_idx, route in enumerate(solution):
-            for pos_idx, node in enumerate(route):
-                if node != 0:
-                    customer = self.id_to_customer[node]
-                    all_nodes.append((route_idx, pos_idx, node, customer.get('x', 0), customer.get('y', 0)))
-        
-        if not all_nodes:
-            return solution, []
-        
-        # 计算移除数量
-        if ratio <= 1.0:
-            n = max(1, math.ceil(len(all_nodes) * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, len(all_nodes))
-        
-        # 计算坐标范围
-        xs = [node[3] for node in all_nodes]
-        ys = [node[4] for node in all_nodes]
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
-        
-        # 网格划分
-        grid_size = 5
-        cell_width = (max_x - min_x + 1) / grid_size
-        cell_height = (max_y - min_y + 1) / grid_size
-        
-        # 分配节点到网格
-        grid = {}
-        for node_info in all_nodes:
-            gx = min(grid_size - 1, int((node_info[3] - min_x) / cell_width)) if cell_width > 0 else 0
-            gy = min(grid_size - 1, int((node_info[4] - min_y) / cell_height)) if cell_height > 0 else 0
-            key = (gx, gy)
-            if key not in grid:
-                grid[key] = []
-            grid[key].append(node_info)
-        
-        # 随机选择一个非空网格
-        non_empty_cells = [k for k, v in grid.items() if v]
-        if not non_empty_cells:
-            return solution, []
-        
-        selected_cell = random.choice(non_empty_cells)
-        selected = grid[selected_cell][:n]
-        
-        # 如果不足，从相邻网格补充
-        if len(selected) < n:
-            gx, gy = selected_cell
-            for dx in [-1, 0, 1]:
-                for dy in [-1, 0, 1]:
-                    if dx == 0 and dy == 0:
-                        continue
-                    neighbor = (gx + dx, gy + dy)
-                    if neighbor in grid:
-                        for node_info in grid[neighbor]:
-                            if node_info not in selected and len(selected) < n:
-                                selected.append(node_info)
-        
-        # 降序移除
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        removed_nodes = []
-        for route_idx, pos_idx, node, x, y in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        # 过滤空路径
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-    
     def destroy(self, solution, remove_ratio=0.2):
         '''调用 Destroy 算子移除解中的客户节点'''
         solution = copy.deepcopy(solution)
         self.last_d_idx = random.choices(range(len(self.destroy_ops)), weights=self.d_weights)[0]
         op = self.destroy_ops[self.last_d_idx]
-        
-        # 尝试调用 LLM 生成的算子，失败则使用备用
-        try:
-            result = op(solution, remove_ratio)
-            if result is None or (isinstance(result, tuple) and result[0] is None):
-                raise ValueError("算子返回None")
-            return result
-        except Exception as e:
-            # 使用对应的备用算子
-            fallback_ops = [
-                lambda s, r: self._fallback_random_removal(s, r),
-                lambda s, r: self._fallback_worst_removal(s, r),
-                lambda s, r: self._fallback_related_removal(s, r),
-                lambda s, r: self._fallback_shaw_removal(s, r),
-                lambda s, r: self._fallback_history_removal(s, r),
-                lambda s, r: self._fallback_cluster_removal(s, r),
-            ]
-            if self.last_d_idx < len(fallback_ops):
-                return fallback_ops[self.last_d_idx](solution, remove_ratio)
-            return solution, []
+        return op(solution, remove_ratio)
     
-    def _fallback_random_removal(self, solution, ratio):
-        '''备用随机破坏算子'''
-        all_nodes = []
-        for route_idx, route in enumerate(solution):
-            for pos_idx, node in enumerate(route):
-                if node != 0:
-                    all_nodes.append((route_idx, pos_idx, node))
-        
-        if not all_nodes:
-            return solution, []
-        
-        if ratio <= 1.0:
-            n = max(1, math.ceil(len(all_nodes) * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, len(all_nodes))
-        
-        selected = random.sample(all_nodes, n)
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        
-        removed_nodes = []
-        for route_idx, pos_idx, node in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-    
-    def _fallback_worst_removal(self, solution, ratio):
-        '''备用最差破坏算子'''
-        node_contributions = []
-        for route_idx, route in enumerate(solution):
-            if len(route) < 3:
-                continue
-            for pos_idx in range(1, len(route) - 1):
-                node = route[pos_idx]
-                if node == 0:
-                    continue
-                prev = route[pos_idx - 1]
-                next_n = route[pos_idx + 1]
-                contrib = (self.dist_matrix[prev][node] + 
-                          self.dist_matrix[node][next_n] - 
-                          self.dist_matrix[prev][next_n])
-                node_contributions.append((route_idx, pos_idx, node, contrib))
-        
-        if not node_contributions:
-            return solution, []
-        
-        total = len(node_contributions)
-        if ratio <= 1.0:
-            n = max(1, math.ceil(total * ratio))
-        else:
-            n = int(ratio)
-        n = min(n, total)
-        
-        node_contributions.sort(key=lambda x: x[3], reverse=True)
-        selected = node_contributions[:n]
-        selected.sort(key=lambda x: (x[0], x[1]), reverse=True)
-        
-        removed_nodes = []
-        for route_idx, pos_idx, node, _ in selected:
-            solution[route_idx].pop(pos_idx)
-            removed_nodes.append(node)
-        
-        solution = [route for route in solution if len(route) > 2]
-        return solution, removed_nodes
-
     def insert(self, partial_solution, removed_nodes):
         '''调用 Insert 算子将 removed_nodes 插回解中'''
         partial_solution = copy.deepcopy(partial_solution)
         self.last_i_idx = random.choices(range(len(self.insert_ops)), weights=self.i_weights)[0]
         op = self.insert_ops[self.last_i_idx]
-        
-        # 尝试调用 LLM 生成的算子，失败则使用备用
-        try:
-            result = op(partial_solution, removed_nodes)
-            if result is None:
-                raise ValueError("算子返回None")
-            return result
-        except Exception as e:
-            # 使用对应的备用算子
-            fallback_ops = [
-                self._fallback_greedy_insert,
-                self._fallback_regret_insert,
-                self._fallback_random_insert,
-            ]
-            if self.last_i_idx < len(fallback_ops):
-                return fallback_ops[self.last_i_idx](partial_solution, removed_nodes)
-            return self._fallback_greedy_insert(partial_solution, removed_nodes)
+        return op(partial_solution, removed_nodes)
     
     def update_weights(self, reward):
         '''更新算子权重（使用文档推荐的4档分数体系）
@@ -814,97 +453,71 @@ class HeuristicSolver:
         
         id_to_idx = {c['id']: i for i, c in enumerate(self.customers)}
         
-        # ===== 技巧1：初始方案很重要 =====
-        # 生成多个初始解，选择最好的那个
-        num_initial_solutions = 3  # 生成3个初始解
-        best_initial_solution = None
-        best_initial_cost = float('inf')
+        current_solution = []
+        remaining = list(non_depot)
+        remaining.sort(key=lambda c: c.get('demand', 0), reverse=True)
         
-        for init_attempt in range(num_initial_solutions):
-            current_solution = []
-            remaining = list(non_depot)
+        route_count = 0
+        while remaining:
+            route = [0]
+            load = 0
+            pos_id = 0
+            curr_time = 0.0
             
-            # 不同的初始排序策略增加多样性
-            if init_attempt == 0:
-                # 策略1: 按需求降序（优先处理大需求客户）
-                remaining.sort(key=lambda c: c.get('demand', 0), reverse=True)
-            elif init_attempt == 1:
-                # 策略2: 按时间窗紧迫度（优先处理时间紧的客户）
-                remaining.sort(key=lambda c: c.get('due_date', float('inf')) - c.get('ready_time', 0))
-            else:
-                # 策略3: 随机打乱
-                random.shuffle(remaining)
-            
-            route_count = 0
             while remaining:
-                route = [0]
-                load = 0
-                pos_id = 0
-                curr_time = 0.0
+                best_customer = None
+                best_score = float('inf')
                 
-                while remaining:
-                    best_customer = None
-                    best_score = float('inf')
+                for c in remaining:
+                    cid = c['id']
+                    demand = c.get('demand', 0)
                     
-                    for c in remaining:
-                        cid = c['id']
-                        demand = c.get('demand', 0)
-                        
-                        if load + demand > capacity:
-                            continue
-                        
-                        dist = self.dist_matrix[id_to_idx[pos_id]][id_to_idx[cid]]
-                        travel_time = dist * (60.0 / self.calculator.v)
-                        arrival_time = curr_time + travel_time
-                        
-                        Ei = c.get('E_i', 0)
-                        Li = c.get('L_i', float('inf'))
-                        
-                        if arrival_time > Li:
-                            continue
-                        
-                        time_urgency = max(0, arrival_time - c.get('due_date', Li))
-                        score = dist + time_urgency * 0.5
-                        
-                        if score < best_score:
-                            best_score = score
-                            best_customer = c
+                    if load + demand > capacity:
+                        continue
                     
-                    if best_customer:
-                        route.append(best_customer['id'])
-                        load += best_customer.get('demand', 0)
-                        
-                        dist = self.dist_matrix[id_to_idx[pos_id]][id_to_idx[best_customer['id']]]
-                        curr_time += dist * (60.0 / self.calculator.v)
-                        curr_time = max(curr_time, best_customer.get('ready_time', 0))
-                        curr_time += best_customer.get('service_time', 0)
-                        
-                        pos_id = best_customer['id']
-                        remaining.remove(best_customer)
-                    else:
-                        break
+                    dist = self.dist_matrix[id_to_idx[pos_id]][id_to_idx[cid]]
+                    travel_time = dist * (60.0 / self.calculator.v)
+                    arrival_time = curr_time + travel_time
+                    
+                    Ei = c.get('E_i', 0)
+                    Li = c.get('L_i', float('inf'))
+                    
+                    if arrival_time > Li:
+                        continue
+                    
+                    time_urgency = max(0, arrival_time - c.get('due_date', Li))
+                    score = dist + time_urgency * 0.5
+                    
+                    if score < best_score:
+                        best_score = score
+                        best_customer = c
                 
-                route.append(0)
-                
-                if len(route) > 2:
-                    current_solution.append(route)
-                    route_count += 1
+                if best_customer:
+                    route.append(best_customer['id'])
+                    load += best_customer.get('demand', 0)
+                    
+                    dist = self.dist_matrix[id_to_idx[pos_id]][id_to_idx[best_customer['id']]]
+                    curr_time += dist * (60.0 / self.calculator.v)
+                    curr_time = max(curr_time, best_customer.get('ready_time', 0))
+                    curr_time += best_customer.get('service_time', 0)
+                    
+                    pos_id = best_customer['id']
+                    remaining.remove(best_customer)
+                else:
+                    break
             
-            # 处理剩余客户
+            route.append(0)
+            
+            if len(route) > 2:
+                current_solution.append(route)
+                route_count += 1
+                print(f"  [路径 {route_count}] 客户数: {len(route)-2}, 负载: {load}/{capacity}")
+        
+        if remaining:
+            print(f"  [兜底] {len(remaining)} 个客户单独成路径")
             for c in remaining:
                 current_solution.append([0, c['id'], 0])
-            
-            # 评估此初始解
-            init_cost = self.cost(current_solution)
-            print(f"  [初始解尝试 {init_attempt+1}/{num_initial_solutions}] 成本: {init_cost:.2f}, 路径数: {len(current_solution)}")
-            
-            if init_cost < best_initial_cost:
-                best_initial_cost = init_cost
-                best_initial_solution = copy.deepcopy(current_solution)
-        
-        # 使用最优初始解
-        current_solution = best_initial_solution
-        print(f"  [选择最优初始解] 成本: {best_initial_cost:.2f}")
+                route_count += 1
         
         #  使用修复后的 cost 方法
         current_cost = self.cost(current_solution)
@@ -928,46 +541,33 @@ class HeuristicSolver:
         
         print("[ALNS] 开始迭代优化...\n")
         
-        # ALNS参数 - 平衡探索与利用
-        # 使用适中的初始温度，避免前期成本飙升
-        T = max(current_cost * 0.05, 80) if current_cost < float('inf') else 100  # 初始温度（能接受差5%的解）
-        
-        # 自适应冷却系数：线性冷却策略
-        # 目标：平滑地从探索过渡到利用
-        target_ratio = 0.02  # 最终温度为初始温度的2%
-        alpha = target_ratio ** (1.0 / max_iters)  # 在max_iters次迭代后达到目标温度
-        
-        print(f"[参数] 初始温度: {T:.2f}, 冷却系数: {alpha:.6f}, 迭代次数: {max_iters}")
-        
+        # ALNS参数 - 按文档推荐配置
+        T = max(current_cost * 0.05, 50) if current_cost < float('inf') else 100  # 初始温度（能接受差10%的解）
+        alpha = 0.995  # 冷却系数（文档推荐0.95-0.99）
         improvement_count = 0
         no_improve_count = 0
         last_improve_iter = 0
         
-        # 评估周期和重启阈值与迭代次数成比例
-        segment_size = max(50, int(max_iters * 0.25))  # 每25%迭代调整一次权重
-        restart_threshold = max(60, int(max_iters * 0.4))  # 40%迭代无改善时重启（更宽容）
+        # 评估周期（文档推荐100-200轮调整一次权重）
+        segment_size = 100
         
         for iteration in range(max_iters):
             self.current_iteration = iteration  # 更新当前迭代次数（用于history_removal）
             temp_solution = copy.deepcopy(current_solution)
             
-            # 自适应破坏程度 - 使用保守策略避免成本暴涨
-            # 阈值与总迭代次数成比例
-            threshold_medium = max_iters * 0.27  # ~27%无改善
-            threshold_high = max_iters * 0.53    # ~53%无改善
-            
-            if no_improve_count > threshold_high:
-                # 长时间无改善，适度增大扰动到25%
+            # 自适应破坏程度（文档推荐20%-40%）
+            if no_improve_count > 80:
+                # 长时间无改善，增大扰动到40%
+                base_remove = max(3, int(len(non_depot) * 0.25))
+                max_remove = max(8, int(len(non_depot) * 0.40))
+            elif no_improve_count > 40:
+                # 中等扰动30%
+                base_remove = max(2, int(len(non_depot) * 0.20))
+                max_remove = max(6, int(len(non_depot) * 0.30))
+            else:
+                # 小步优化（默认20%-25%）
                 base_remove = max(2, int(len(non_depot) * 0.15))
                 max_remove = max(4, int(len(non_depot) * 0.25))
-            elif no_improve_count > threshold_medium:
-                # 中等扰动15%
-                base_remove = max(2, int(len(non_depot) * 0.10))
-                max_remove = max(3, int(len(non_depot) * 0.15))
-            else:
-                # 小步优化（默认8%-12%）
-                base_remove = max(1, int(len(non_depot) * 0.06))
-                max_remove = max(2, int(len(non_depot) * 0.12))
             num_remove = random.randint(base_remove, max_remove)
             
             try:
@@ -1012,22 +612,14 @@ class HeuristicSolver:
                 else:
                     self.update_weights(reward='improved')  # σ₂=9
             
-            elif T > 0.01 and delta < float('inf'):  # 降低温度下限，让后期也能接受差解
-                # 添加成本上限保护：不接受比初始解差太多的解
-                cost_limit = max(current_cost * 1.5, best_cost * 2.0)  # 最多接受50%差的解
-                
-                if new_cost <= cost_limit:
-                    accept_prob = math.exp(-delta / T)
-                    if random.random() < accept_prob:
-                        current_solution = new_solution
-                        current_cost = new_cost
-                        self.update_weights(reward='accepted')  # σ₃=3
-                        no_improve_count += 1
-                    else:
-                        self.update_weights(reward='rejected')  # σ₄=0
-                        no_improve_count += 1
+            elif T > 0.1 and delta < float('inf'):
+                accept_prob = math.exp(-delta / T)
+                if random.random() < accept_prob:
+                    current_solution = new_solution
+                    current_cost = new_cost
+                    self.update_weights(reward='accepted')  # σ₃=3
+                    no_improve_count += 1
                 else:
-                    # 超出成本上限，直接拒绝
                     self.update_weights(reward='rejected')  # σ₄=0
                     no_improve_count += 1
             else:
@@ -1036,24 +628,13 @@ class HeuristicSolver:
             
             T *= alpha
             
-            # ===== 技巧5：记录和可视化 =====
-            # 记录成本变化
-            self.cost_history.append(current_cost)
-            self.best_cost_history.append(best_cost)
-            
-            # 每 segment_size 轮记录一次权重
-            if (iteration + 1) % segment_size == 0:
-                self.weight_history['destroy'].append(list(self.d_weights))
-                self.weight_history['insert'].append(list(self.i_weights))
-            
-            # 重启机制：连续一定次数无改善时重启到最优解（带再加热）
-            if no_improve_count > restart_threshold:
+            # 重启机制：连续60次无改善时重启到最优解（带再加热）
+            if no_improve_count > 60:
                 current_solution = copy.deepcopy(best_solution)
                 current_cost = best_cost
                 no_improve_count = 0
-                # 再加热：恢复到初始温度的30%，避免过度探索
-                T = max(best_cost * 0.05, 80) * 0.3  
-                print(f"[迭代 {iteration:3d}] 重启到最优解（再加热T={T:.1f}，阈值={restart_threshold}）")
+                T = max(best_cost * 0.03, 30)  # 再加热：重置到较高温度
+                print(f"[迭代 {iteration:3d}] 重启到最优解（再加热）")
             
             # 周期性权重归一化（每 segment_size 轮）
             if (iteration + 1) % segment_size == 0:
@@ -1067,9 +648,8 @@ class HeuristicSolver:
                 if i_sum > 0:
                     self.i_weights = [w / i_sum * len(self.i_weights) for w in self.i_weights]
             
-            if (iteration + 1) % 5 == 0:
-                # 输出格式：Iter N: Current=XXX, Best=YYY (方便提取用于可视化)
-                print(f"Iter {iteration+1:3d}: Current={current_cost:.2f}, Best={best_cost:.2f}, Temp={T:.2f}, Routes={len(current_solution)}")
+            if (iteration + 1) % 40 == 0:
+                print(f"[迭代 {iteration+1:3d}] 当前: {current_cost:.2f}, 最优: {best_cost:.2f}, 温度: {T:.2f}, 路径数: {len(current_solution)}")
         
         # 尝试2-opt优化，但只在成本改善时才保留
         optimized_solution = self.local_search(copy.deepcopy(best_solution))
@@ -1080,10 +660,31 @@ class HeuristicSolver:
             print(f"[后处理] 2-opt优化成功: {best_cost:.2f}")
         
         print(f"\n{'='*60}")
-        print(f"【最终结果】最优成本: {best_cost:.2f}" if best_cost < float('inf') else "【最终结果】最优成本: INF")
-        print(f"【最终结果】路径数量: {len(best_solution)}")
-        print(f"【最终结果】改进次数: {improvement_count}")
-        print(f"【最终结果】最后改进: 第 {last_improve_iter} 次迭代")
+        print("[最终结果] 最优成本: " + (f"{best_cost:.2f}" if best_cost < float('inf') else "INF"))
+        print(f"[最终结果] 路径数量: {len(best_solution)}")
+        print(f"[最终结果] 改善次数: {improvement_count}")
+        print(f"[最终结果] 最后改善迭代: {last_improve_iter}")
+        
+        # 算子统计报告（实战技巧）
+        destroy_names = ['random', 'worst', 'related', 'shaw', 'history', 'cluster']
+        insert_names = ['greedy', 'regret', 'random']
+        
+        print(f"\n[算子统计 - 破坏]")
+        for i, name in enumerate(destroy_names):
+            if i < len(self.destroy_ops):
+                stats = self.op_stats['destroy'][i]
+                avg_score = stats['score'] / max(1, stats['uses'])
+                success_rate = stats['successes'] / max(1, stats['uses']) * 100
+                print(f"  {name:10s}: 使用{stats['uses']:4d}次, 成功{stats['successes']:3d}次({success_rate:5.1f}%), 权重{self.d_weights[i]:.2f}")
+        
+        print(f"[算子统计 - 修复]")
+        for i, name in enumerate(insert_names):
+            if i < len(self.insert_ops):
+                stats = self.op_stats['insert'][i]
+                avg_score = stats['score'] / max(1, stats['uses'])
+                success_rate = stats['successes'] / max(1, stats['uses']) * 100
+                print(f"  {name:10s}: 使用{stats['uses']:4d}次, 成功{stats['successes']:3d}次({success_rate:5.1f}%), 权重{self.i_weights[i]:.2f}")
+        
         print(f"{'='*60}\n")
         
         return best_solution, best_cost
@@ -1117,7 +718,7 @@ class HeuristicSolver:
         avg_cost = sum(all_costs) / len(all_costs)
         
         print(f"\n{'='*60}")
-        print(f"【多次运行汇总】")
+        print(f"[多次运行最终结果]")
         print(f"  最优成本: {best_overall:.2f}")
         print(f"  平均成本: {avg_cost:.2f}")
         print(f"  路径数量: {len(best_sol_overall)}")

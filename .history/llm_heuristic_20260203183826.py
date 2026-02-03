@@ -483,11 +483,11 @@ def visualize_results(dataset, solution, best_cost, output):
                 xytext=(12, -16), textcoords='offset points',
                 fontsize=10, color='navy')
         
-        ax1.plot(iterations[end_idx], cost_smooth[end_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'最终: {cost_smooth[end_idx]:.2f}',
-                xy=(iterations[end_idx], cost_smooth[end_idx]),
+        ax1.plot(iterations[end_idx], best_history[end_idx], 'o', color='darkred', markersize=6, zorder=5)
+        ax1.annotate(f'最终最优: {best_history[end_idx]:.2f}',
+                xy=(iterations[end_idx], best_history[end_idx]),
                 xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
+                fontsize=10, color='darkred')
         
         ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=18, zorder=6, markeredgecolor='darkred', markeredgewidth=2.0)
         ax1.annotate(f'最优: {best_history[min_idx]:.2f}', 

@@ -1067,7 +1067,7 @@ class HeuristicSolver:
                 if i_sum > 0:
                     self.i_weights = [w / i_sum * len(self.i_weights) for w in self.i_weights]
             
-            if (iteration + 1) % 5 == 0:
+            if (iteration + 1) % 10 == 0:
                 # 输出格式：Iter N: Current=XXX, Best=YYY (方便提取用于可视化)
                 print(f"Iter {iteration+1:3d}: Current={current_cost:.2f}, Best={best_cost:.2f}, Temp={T:.2f}, Routes={len(current_solution)}")
         

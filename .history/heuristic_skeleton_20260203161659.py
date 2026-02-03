@@ -951,23 +951,23 @@ class HeuristicSolver:
             self.current_iteration = iteration  # 更新当前迭代次数（用于history_removal）
             temp_solution = copy.deepcopy(current_solution)
             
-            # 自适应破坏程度 - 使用保守策略避免成本暴涨
+            # 自适应破坏程度 - 使用更保守的破坏比例
             # 阈值与总迭代次数成比例
             threshold_medium = max_iters * 0.27  # ~27%无改善
             threshold_high = max_iters * 0.53    # ~53%无改善
             
             if no_improve_count > threshold_high:
-                # 长时间无改善，适度增大扰动到25%
-                base_remove = max(2, int(len(non_depot) * 0.15))
-                max_remove = max(4, int(len(non_depot) * 0.25))
+                # 长时间无改善，适度增大扰动到30%
+                base_remove = max(2, int(len(non_depot) * 0.20))
+                max_remove = max(5, int(len(non_depot) * 0.30))
             elif no_improve_count > threshold_medium:
-                # 中等扰动15%
-                base_remove = max(2, int(len(non_depot) * 0.10))
-                max_remove = max(3, int(len(non_depot) * 0.15))
+                # 中等扰动20%
+                base_remove = max(2, int(len(non_depot) * 0.12))
+                max_remove = max(4, int(len(non_depot) * 0.20))
             else:
-                # 小步优化（默认8%-12%）
-                base_remove = max(1, int(len(non_depot) * 0.06))
-                max_remove = max(2, int(len(non_depot) * 0.12))
+                # 小步优化（默认10%-15%）
+                base_remove = max(2, int(len(non_depot) * 0.08))
+                max_remove = max(3, int(len(non_depot) * 0.15))
             num_remove = random.randint(base_remove, max_remove)
             
             try:
@@ -1013,21 +1013,16 @@ class HeuristicSolver:
                     self.update_weights(reward='improved')  # σ₂=9
             
             elif T > 0.01 and delta < float('inf'):  # 降低温度下限，让后期也能接受差解
-                # 添加成本上限保护：不接受比初始解差太多的解
-                cost_limit = max(current_cost * 1.5, best_cost * 2.0)  # 最多接受50%差的解
-                
-                if new_cost <= cost_limit:
-                    accept_prob = math.exp(-delta / T)
-                    if random.random() < accept_prob:
-                        current_solution = new_solution
-                        current_cost = new_cost
-                        self.update_weights(reward='accepted')  # σ₃=3
-                        no_improve_count += 1
-                    else:
-                        self.update_weights(reward='rejected')  # σ₄=0
-                        no_improve_count += 1
+                accept_prob = math.exp(-delta / T)
+                if random.random() < accept_prob:
+                    current_solution = new_solution
+                    current_cost = new_cost
+                    self.update_weights(reward='accepted')  # σ₃=3
+                    no_improve_count += 1
+                    # 每50次迭代输出一次接受信息，观察探索行为
+                    if (iteration + 1) % 50 == 0:
+                        print(f"[迭代 {iteration:3d}] 接受差解 Δ={delta:.1f}, P={accept_prob:.3f}, T={T:.1f}")
                 else:
-                    # 超出成本上限，直接拒绝
                     self.update_weights(reward='rejected')  # σ₄=0
                     no_improve_count += 1
             else:
@@ -1067,7 +1062,7 @@ class HeuristicSolver:
                 if i_sum > 0:
                     self.i_weights = [w / i_sum * len(self.i_weights) for w in self.i_weights]
             
-            if (iteration + 1) % 5 == 0:
+            if (iteration + 1) % 10 == 0:
                 # 输出格式：Iter N: Current=XXX, Best=YYY (方便提取用于可视化)
                 print(f"Iter {iteration+1:3d}: Current={current_cost:.2f}, Best={best_cost:.2f}, Temp={T:.2f}, Routes={len(current_solution)}")
         

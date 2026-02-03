@@ -28,7 +28,7 @@ from utils import (
 
     )
 from heuristic_skeleton import HEURISTIC_SKELETON
-from heuristic_prompts import HEURISTIC_PLUGIN_TEMPLATE
+from heuristic_prompts_o import HEURISTIC_PLUGIN_TEMPLATE
 
 # Load environment variables from .env file
 load_dotenv()
@@ -288,7 +288,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve_multi_run(max_iters=1000, num_runs=5, base_seed=42)\n"
+            "        best_sol, best_cost = solver.solve_multi_run(max_iters=150, num_runs=5, base_seed=42)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -329,62 +329,37 @@ def extract_solution_from_output(output):
     """从求解输出中提取路线信息"""
     solution = []
     
-    print("[调试] 开始提取路线信息...")
-    
     # 尝试多种格式提取路线
     # 格式1: Route 1: [0, 1, 2, 0]
     route_pattern1 = r'Route \d+: \[(.*?)\]'
-    matches = re.findall(route_pattern1, output, re.IGNORECASE)
-    
-    print(f"[调试] 格式1匹配到 {len(matches)} 条路线")
+    matches = re.findall(route_pattern1, output)
     
     if matches:
-        for i, match in enumerate(matches):
+        for match in matches:
             nodes_str = match.strip()
             if nodes_str:
                 try:
-                    # 更宽松的数字提取
-                    nodes = [int(x.strip()) for x in nodes_str.split(',') if x.strip().lstrip('-').isdigit()]
-                    if nodes:
-                        solution.append(nodes)
-                        print(f"[调试] 路线 {i+1}: {nodes[:5]}{'...' if len(nodes) > 5 else ''}")
-                except Exception as e:
-                    print(f"[调试] 解析路线 {i+1} 失败: {e}")
-    
-    # 格式2: BEST_SOLUTION: [[0,1,2,0], [0,3,4,0]]
-    if not solution:
-        print("[调试] 尝试格式2...")
-        solution_pattern = r'BEST_SOLUTION:\s*(\[\[.*?\]\])'
-        match = re.search(solution_pattern, output, re.DOTALL)
-        if match:
-            try:
-                import ast
-                solution = ast.literal_eval(match.group(1))
-                print(f"[调试] 格式2提取到 {len(solution)} 条路线")
-            except Exception as e:
-                print(f"[调试] 格式2解析失败: {e}")
-    
-    # 如果还是没有，尝试更宽松的匹配
-    if not solution:
-        print("[调试] 尝试宽松匹配...")
-        # 查找任何包含节点列表的行
-        route_lines = re.findall(r'路线\s*\d+[：:]\s*\[(.*?)\]', output, re.IGNORECASE)
-        if route_lines:
-            print(f"[调试] 宽松匹配找到 {len(route_lines)} 条路线")
-            for line in route_lines:
-                try:
-                    nodes = [int(x.strip()) for x in line.split(',') if x.strip().lstrip('-').isdigit()]
+                    nodes = [int(x.strip()) for x in nodes_str.split(',') if x.strip().replace('-','').isdigit()]
                     if nodes:
                         solution.append(nodes)
                 except:
                     pass
     
-    print(f"[调试] 最终提取到 {len(solution)} 条路线")
+    # 格式2: BEST_SOLUTION: [[0,1,2,0], [0,3,4,0]]
+    if not solution:
+        solution_pattern = r'BEST_SOLUTION:\s*(\[.*?\])'
+        match = re.search(solution_pattern, output, re.DOTALL)
+        if match:
+            try:
+                import ast
+                solution = ast.literal_eval(match.group(1))
+            except:
+                pass
+    
     return solution
 
 def extract_iteration_history(output):
-    """从输出中提取迭代历史 - 只提取最后一次运行的数据"""
-    iterations = []
+    """从输出中提取迭代历史"""
     cost_history = []
     best_history = []
     
@@ -392,36 +367,12 @@ def extract_iteration_history(output):
     iter_pattern = r'Iter\s+(\d+):\s+Current=([\d.]+),\s+Best=([\d.]+)'
     matches = re.findall(iter_pattern, output)
     
-    if not matches:
-        return iterations, cost_history, best_history
-    
-    # 检测运行边界：当迭代次数重置（从大到小）时，说明开始新一轮
-    all_runs = []
-    current_run = []
-    
     for match in matches:
         iteration, current_cost, best_cost = match
-        iter_num = int(iteration)
-        
-        # 如果迭代次数变小，说明开始了新一轮
-        if current_run and iter_num <= current_run[-1][0]:
-            all_runs.append(current_run)
-            current_run = []
-        
-        current_run.append((iter_num, float(current_cost), float(best_cost)))
+        cost_history.append(float(current_cost))
+        best_history.append(float(best_cost))
     
-    # 添加最后一轮
-    if current_run:
-        all_runs.append(current_run)
-    
-    # 只返回最后一次运行的数据（通常是最优的）
-    if all_runs:
-        last_run = all_runs[-1]
-        iterations = [item[0] for item in last_run]
-        cost_history = [item[1] for item in last_run]
-        best_history = [item[2] for item in last_run]
-    
-    return iterations, cost_history, best_history
+    return cost_history, best_history
 
 def visualize_results(dataset, solution, best_cost, output):
     """生成可视化图表"""
@@ -435,67 +386,28 @@ def visualize_results(dataset, solution, best_cost, output):
     
     # 子图1: 迭代历史
     ax1 = plt.subplot(1, 3, 1)
-    iterations, cost_history, best_history = extract_iteration_history(output)
+    cost_history, best_history = extract_iteration_history(output)
     
-    if cost_history and best_history and iterations:
-        # 计算移动平均，平滑曲线
-        window_size = max(5, len(cost_history) // 10)  # 窗口大小为10%的数据点（更平滑）
-        
-        def moving_average(data, window):
-            if len(data) < window:
-                return data
-            smoothed = []
-            for i in range(len(data)):
-                start = max(0, i - window // 2)
-                end = min(len(data), i + window // 2 + 1)
-                smoothed.append(sum(data[start:end]) / (end - start))
-            return smoothed
-        
-        cost_smooth = moving_average(cost_history, window_size)
-        
-        # 显示原始当前成本（淡）+ 平滑趋势 + 最优成本
-        ax1.plot(iterations, cost_history, color='steelblue', linewidth=1.0, alpha=0.25, label='当前成本（原始）')
-        ax1.plot(iterations, cost_smooth, 'b-', linewidth=2.2, label='当前成本（平滑）', alpha=0.9)
-        ax1.plot(iterations, best_history, 'r-', linewidth=2.4, label='最优成本')
-        
-        # 优化y轴范围
-        min_cost = min(min(best_history), min(cost_smooth))
-        max_cost = max(max(best_history), max(cost_smooth))
-        y_range = max_cost - min_cost
-        if y_range > 0:
-            y_margin = y_range * 0.08
-            ax1.set_ylim(min_cost - y_margin, max_cost + y_margin)
-        
-        ax1.set_xlabel('迭代次数', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('成本', fontsize=12, fontweight='bold')
+    if cost_history and best_history:
+        iterations = [i * 40 for i in range(len(cost_history))]  # 每40次迭代输出一次
+        ax1.plot(iterations, cost_history, 'b-', alpha=0.5, linewidth=1.5, label='当前成本')
+        ax1.plot(iterations, best_history, 'r-', linewidth=2.5, label='最优成本')
+        ax1.set_xlabel('迭代次数', fontsize=12)
+        ax1.set_ylabel('成本', fontsize=12)
         ax1.set_title('ALNS算法收敛曲线', fontsize=14, fontweight='bold')
-        ax1.legend(fontsize=10, loc='upper right')
-        ax1.grid(True, alpha=0.25, linestyle='--', linewidth=0.5)
+        ax1.legend(fontsize=11)
+        ax1.grid(True, alpha=0.3, linestyle='--')
         
-        # 标注关键点：初始、最终、最优
-        start_idx = 0
-        end_idx = len(iterations) - 1
-        min_idx = best_history.index(min(best_history))
-        
-        ax1.plot(iterations[start_idx], cost_smooth[start_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'初始: {cost_smooth[start_idx]:.2f}',
-                xy=(iterations[start_idx], cost_smooth[start_idx]),
-                xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
-        
-        ax1.plot(iterations[end_idx], cost_smooth[end_idx], 'o', color='navy', markersize=6, zorder=5)
-        ax1.annotate(f'最终: {cost_smooth[end_idx]:.2f}',
-                xy=(iterations[end_idx], cost_smooth[end_idx]),
-                xytext=(12, -16), textcoords='offset points',
-                fontsize=10, color='navy')
-        
-        ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=18, zorder=6, markeredgecolor='darkred', markeredgewidth=2.0)
-        ax1.annotate(f'最优: {best_history[min_idx]:.2f}', 
-                xy=(iterations[min_idx], best_history[min_idx]),
-                xytext=(15, 15), textcoords='offset points',
-                fontsize=11, color='darkred', fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.85, edgecolor='red', linewidth=2),
-                arrowprops=dict(arrowstyle='->', color='red', lw=2))
+        # 标注最优值
+        min_cost = min(best_history)
+        min_idx = best_history.index(min_cost)
+        ax1.plot(iterations[min_idx], min_cost, 'r*', markersize=15, zorder=5)
+        ax1.annotate(f'最优: {min_cost:.2f}', 
+                    xy=(iterations[min_idx], min_cost),
+                    xytext=(10, 10), textcoords='offset points',
+                    fontsize=10, color='red',
+                    bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
+                    arrowprops=dict(arrowstyle='->', color='red', lw=1.5))
     else:
         ax1.text(0.5, 0.5, '无迭代数据', 
                 ha='center', va='center', transform=ax1.transAxes, fontsize=14)
@@ -521,61 +433,23 @@ def visualize_results(dataset, solution, best_cost, output):
     # 绘制路线 - 只有当solution存在且有效时
     if solution and len(solution) > 0:
         colors = plt.cm.tab20(np.linspace(0, 1, max(20, len(solution))))
-        
         for idx, route in enumerate(solution):
             try:
-                # 确保路线包含仓库（节点0）作为起点和终点
-                if not route or len(route) == 0:
-                    continue
-                
-                # 构建完整路线：仓库 -> 客户们 -> 仓库
-                complete_route = []
-                
-                # 添加起始仓库
-                if route[0] != 0:
-                    complete_route.append(0)
-                
-                # 添加路线中的所有节点
-                complete_route.extend(route)
-                
-                # 添加终止仓库
-                if route[-1] != 0:
-                    complete_route.append(0)
-                
-                # 提取路线所有节点的坐标
-                route_x = []
-                route_y = []
-                for node in complete_route:
-                    if node < len(customers):
-                        route_x.append(customers[node]['x'])
-                        route_y.append(customers[node]['y'])
-                
-                if len(route_x) >= 2:
+                route_coords = [(customers[node]['x'], customers[node]['y']) for node in route if node < len(customers)]
+                if route_coords and len(route_coords) >= 2:
+                    rx, ry = zip(*route_coords)
                     color = colors[idx % len(colors)]
-                    
-                    # 绘制完整路线（从仓库出发到每个客户再回到仓库），添加到图例
-                    ax2.plot(route_x, route_y, '-', color=color, linewidth=2.5, alpha=0.75, zorder=2, label=f'路线{idx+1}')
-                    
-                    # 绘制中间的客户点（不包括起始和结束的仓库）
-                    if len(route_x) > 2:
-                        # 只绘制客户点，不绘制仓库点
-                        customer_x = route_x[1:-1]
-                        customer_y = route_y[1:-1]
-                        ax2.scatter(customer_x, customer_y, c=[color]*len(customer_x), s=80, alpha=0.9, 
-                                   zorder=4, edgecolors='black', linewidths=1.5)
-                    
+                    ax2.plot(rx, ry, '-', color=color, linewidth=2.5, alpha=0.7, zorder=2)
+                    ax2.scatter(rx[1:-1], ry[1:-1], c=[color], s=60, alpha=0.8, zorder=4, edgecolors='black', linewidths=0.5)
             except Exception as e:
-                print(f"[警告] 绘制路线 {idx+1} 时出错: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"[警告] 绘制路线 {idx} 时出错: {e}")
                 continue
     
     ax2.set_xlabel('X 坐标', fontsize=12)
     ax2.set_ylabel('Y 坐标', fontsize=12)
     route_count = len(solution) if solution else 0
     ax2.set_title(f'车辆路线规划图 (共{route_count}条路线)', fontsize=14, fontweight='bold')
-    # 将图例放在图外右侧
-    ax2.legend(fontsize=8, loc='center left', bbox_to_anchor=(1.02, 0.5), ncol=1, frameon=True, fancybox=True, shadow=True)
+    ax2.legend(fontsize=11, loc='upper right')
     ax2.grid(True, alpha=0.3, linestyle='--')
     ax2.axis('equal')
     
@@ -730,8 +604,6 @@ if __name__ == "__main__":
         solution = extract_solution_from_output(output)
         
         print(f"\n[调试] 提取到的路线数量: {len(solution) if solution else 0}")
-        if solution and len(solution) > 0:
-            print(f"[调试] 第一条路线示例: {solution[0][:10]}{'...' if len(solution[0]) > 10 else ''}")
         
         # Visualize results - 即使没有solution也尝试生成图表
         if best_cost:
