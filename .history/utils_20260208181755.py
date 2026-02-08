@@ -3,8 +3,6 @@ import subprocess
 import sys
 import tempfile
 import os
-import time
-import threading
 
 # util.py
 import math
@@ -272,149 +270,30 @@ def extract_and_execute_python_code(text_content):
                 tmp_file.write(code_block)
                 temp_file_path = tmp_file.name
 
-            # 使用 Popen 实时流式输出进度，同时收集完整输出用于返回
-            timeout_seconds = 600
-            process = subprocess.Popen(
-                [sys.executable, '-u', temp_file_path],  # -u 禁用缓冲，确保实时输出
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            result = subprocess.run(
+                [sys.executable, temp_file_path],
+                capture_output=True,
                 text=True,
                 encoding='utf-8',
+                check=False,
+                timeout=3000
             )
 
-            stdout_lines = []
-            stderr_lines = []
-            start_time = time.time()
-
-            # 进度追踪变量
-            current_run = 1       # 默认视为第1轮（单次运行）
-            total_runs = 1
-            max_iters = 0
-            current_iter = 0
-            iter_start_time = None  # 迭代阶段开始时间
-            last_best_cost = None   # 最新最优成本（用于在进度条中显示）
-
-            # 用线程读取 stderr，防止死锁
-            def _read_stderr():
-                for line in process.stderr:
-                    stderr_lines.append(line)
-            stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
-            stderr_thread.start()
-
-            def _format_time(seconds):
-                """格式化秒数为可读时间"""
-                if seconds < 60:
-                    return f"{seconds:.0f}s"
-                elif seconds < 3600:
-                    return f"{int(seconds)//60}m{int(seconds)%60}s"
-                else:
-                    return f"{int(seconds)//3600}h{int(seconds)%3600//60}m"
-
-            # 主线程实时读取 stdout 并打印进度（单行刷新模式）
-            in_iter_phase = False  # 是否进入迭代阶段
-            try:
-                for line in process.stdout:
-                    stdout_lines.append(line)
-                    stripped = line.strip()
-                    if not stripped:
-                        continue
-
-                    # --- 解析进度信息 ---
-                    # 检测运行轮次: "第 1/3 次运行"
-                    run_match = re.search(r'第\s*(\d+)/(\d+)\s*次运行', stripped)
-                    if run_match:
-                        current_run = int(run_match.group(1))
-                        total_runs = int(run_match.group(2))
-                        iter_start_time = None
-                        in_iter_phase = False
-
-                    # 检测迭代次数参数: "迭代次数: 600"
-                    iters_match = re.search(r'迭代次数:\s*(\d+)', stripped)
-                    if iters_match:
-                        max_iters = int(iters_match.group(1))
-
-                    # 检测新最优解: "[迭代 107] ✓ 新最优解! 成本: 46414.68"
-                    best_match = re.search(r'成本:\s*([\d.]+)', stripped)
-                    if '✓' in stripped and best_match:
-                        last_best_cost = best_match.group(1)
-
-                    # 检测当前迭代: "Iter  100:"
-                    iter_match = re.search(r'Iter\s+(\d+):', stripped)
-                    if iter_match:
-                        current_iter = int(iter_match.group(1))
-                        if iter_start_time is None:
-                            iter_start_time = time.time()
-                        in_iter_phase = True
-
-                    # --- 构造进度显示 ---
-                    elapsed = time.time() - start_time
-
-                    if max_iters > 0 and current_run > 0 and in_iter_phase and iter_match:
-                        # 迭代阶段：单行覆盖刷新进度条
-                        run_progress = current_iter / max_iters
-                        overall_progress = ((current_run - 1) + run_progress) / total_runs
-
-                        eta_str = ""
-                        if overall_progress > 0.01:
-                            eta = elapsed / overall_progress - elapsed
-                            eta_str = f" | 剩余: {_format_time(eta)}"
-
-                        pct = overall_progress * 100
-                        filled = int(pct // 5)
-                        progress_bar = f"[{'█' * filled}{'░' * (20 - filled)}]"
-                        best_str = f" | 最优: {last_best_cost}" if last_best_cost else ""
-                        # \r 回到行首覆盖，end="" 不换行
-                        print(f"\r  [求解进度] {progress_bar} {pct:5.1f}% | 轮次{current_run}/{total_runs} 迭代{current_iter:3d}/{max_iters}{best_str} | 已用: {_format_time(elapsed)}{eta_str}    ", end="", flush=True)
-                    elif not in_iter_phase:
-                        # 非迭代阶段（初始化、汇总等）：正常换行打印关键信息
-                        if any(kw in stripped for kw in [
-                            'BEST_COST', '最优', '最终', '汇总',
-                            '[Initialization]', '[初始化]', '[参数]',
-                            'Runtime Exception', '第 ', '####', '***',
-                        ]):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
-                    else:
-                        # 迭代阶段的非 Iter 行（重启、汇总等）：换行打印
-                        if any(kw in stripped for kw in ['重启', '最终', '汇总', 'BEST_COST', '***', '后处理']):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
-                            if '汇总' in stripped or 'BEST_COST' in stripped:
-                                in_iter_phase = False  # 本轮迭代结束
-
-                    # 检查超时
-                    if time.time() - start_time > timeout_seconds:
-                        process.kill()
-                        process.wait()
-                        elapsed_int = int(time.time() - start_time)
-                        print()  # 换行
-                        return False, f"Execution timeout ({elapsed_int}s / {timeout_seconds}s limit)"
-
-            except Exception:
-                pass
-
-            # 等待进程结束
-            process.wait()
-            stderr_thread.join(timeout=5)
-            print()  # 进度条换行
-
-            elapsed = time.time() - start_time
-            full_stdout = ''.join(stdout_lines)
-            full_stderr = ''.join(stderr_lines)
-
-            print(f"[执行完成] 耗时: {elapsed:.1f}s, 返回码: {process.returncode}")
-
-            if process.returncode == 0:
+            if result.returncode == 0:
                 print("Python code executed successfully.")
                 # 在返回前尝试提取 objective 值
-                best_obj = extract_best_objective(full_stdout)
+                best_obj = extract_best_objective(result.stdout)
                 if best_obj is not None:
                     # 如果提取到了数字，直接返回这个数字的字符串
                     return True, str(best_obj)
                 else:
                     # 如果没提取到数字但运行成功，返回原始输出
-                    return True, full_stdout
+                    return True, result.stdout
             else:
-                return False, full_stderr
+                return False, result.stderr
 
+        except subprocess.TimeoutExpired:
+            return False, "Execution timeout (3000s)"
         except Exception as e:
             return False, str(e)
         finally:

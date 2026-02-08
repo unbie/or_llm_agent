@@ -287,12 +287,11 @@ def extract_and_execute_python_code(text_content):
             start_time = time.time()
 
             # 进度追踪变量
-            current_run = 1       # 默认视为第1轮（单次运行）
+            current_run = 0
             total_runs = 1
             max_iters = 0
             current_iter = 0
             iter_start_time = None  # 迭代阶段开始时间
-            last_best_cost = None   # 最新最优成本（用于在进度条中显示）
 
             # 用线程读取 stderr，防止死锁
             def _read_stderr():
@@ -310,8 +309,7 @@ def extract_and_execute_python_code(text_content):
                 else:
                     return f"{int(seconds)//3600}h{int(seconds)%3600//60}m"
 
-            # 主线程实时读取 stdout 并打印进度（单行刷新模式）
-            in_iter_phase = False  # 是否进入迭代阶段
+            # 主线程实时读取 stdout 并打印进度
             try:
                 for line in process.stdout:
                     stdout_lines.append(line)
@@ -325,18 +323,12 @@ def extract_and_execute_python_code(text_content):
                     if run_match:
                         current_run = int(run_match.group(1))
                         total_runs = int(run_match.group(2))
-                        iter_start_time = None
-                        in_iter_phase = False
+                        iter_start_time = None  # 重置迭代计时
 
                     # 检测迭代次数参数: "迭代次数: 600"
                     iters_match = re.search(r'迭代次数:\s*(\d+)', stripped)
                     if iters_match:
                         max_iters = int(iters_match.group(1))
-
-                    # 检测新最优解: "[迭代 107] ✓ 新最优解! 成本: 46414.68"
-                    best_match = re.search(r'成本:\s*([\d.]+)', stripped)
-                    if '✓' in stripped and best_match:
-                        last_best_cost = best_match.group(1)
 
                     # 检测当前迭代: "Iter  100:"
                     iter_match = re.search(r'Iter\s+(\d+):', stripped)
@@ -344,49 +336,42 @@ def extract_and_execute_python_code(text_content):
                         current_iter = int(iter_match.group(1))
                         if iter_start_time is None:
                             iter_start_time = time.time()
-                        in_iter_phase = True
 
-                    # --- 构造进度显示 ---
+                    # --- 构造进度提示 ---
                     elapsed = time.time() - start_time
+                    eta_str = ""
 
-                    if max_iters > 0 and current_run > 0 and in_iter_phase and iter_match:
-                        # 迭代阶段：单行覆盖刷新进度条
-                        run_progress = current_iter / max_iters
-                        overall_progress = ((current_run - 1) + run_progress) / total_runs
+                    if max_iters > 0 and current_run > 0 and iter_match:
+                        # 基于当前轮次迭代进度 + 已完成轮次估算总进度
+                        run_progress = current_iter / max_iters  # 当前轮进度 0~1
+                        overall_progress = ((current_run - 1) + run_progress) / total_runs  # 总进度 0~1
 
-                        eta_str = ""
                         if overall_progress > 0.01:
-                            eta = elapsed / overall_progress - elapsed
-                            eta_str = f" | 剩余: {_format_time(eta)}"
+                            estimated_total = elapsed / overall_progress
+                            eta = estimated_total - elapsed
+                            eta_str = f" | 预计剩余: {_format_time(eta)}"
 
                         pct = overall_progress * 100
-                        filled = int(pct // 5)
-                        progress_bar = f"[{'█' * filled}{'░' * (20 - filled)}]"
-                        best_str = f" | 最优: {last_best_cost}" if last_best_cost else ""
-                        # \r 回到行首覆盖，end="" 不换行
-                        print(f"\r  [求解进度] {progress_bar} {pct:5.1f}% | 轮次{current_run}/{total_runs} 迭代{current_iter:3d}/{max_iters}{best_str} | 已用: {_format_time(elapsed)}{eta_str}    ", end="", flush=True)
-                    elif not in_iter_phase:
-                        # 非迭代阶段（初始化、汇总等）：正常换行打印关键信息
-                        if any(kw in stripped for kw in [
-                            'BEST_COST', '最优', '最终', '汇总',
-                            '[Initialization]', '[初始化]', '[参数]',
-                            'Runtime Exception', '第 ', '####', '***',
-                        ]):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
+                        progress_bar = f"[{'█' * int(pct // 5)}{'░' * (20 - int(pct // 5))}]"
+                        # 迭代行：显示进度条和预估时间
+                        print(f"  [求解进度] {progress_bar} {pct:.1f}% | 轮次{current_run}/{total_runs} 迭代{current_iter}/{max_iters} | 已用: {_format_time(elapsed)}{eta_str}")
                     else:
-                        # 迭代阶段的非 Iter 行（重启、汇总等）：换行打印
-                        if any(kw in stripped for kw in ['重启', '最终', '汇总', 'BEST_COST', '***', '后处理']):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
-                            if '汇总' in stripped or 'BEST_COST' in stripped:
-                                in_iter_phase = False  # 本轮迭代结束
+                        # 非迭代行：打印关键信息
+                        if any(kw in stripped for kw in [
+                            '迭代', '初始', '运行', 'BEST_COST', 'Route ',
+                            '最优', '最终', '汇总', '重启', '✓', '***',
+                            '[Initialization]', '[初始化]', '[参数]', '[ALNS]',
+                            '[后处理]', '成本:', 'Runtime Exception',
+                            '第 ', '####',
+                        ]):
+                            print(f"  [求解进度] {stripped} (已用: {_format_time(elapsed)})")
 
                     # 检查超时
                     if time.time() - start_time > timeout_seconds:
                         process.kill()
                         process.wait()
-                        elapsed_int = int(time.time() - start_time)
-                        print()  # 换行
-                        return False, f"Execution timeout ({elapsed_int}s / {timeout_seconds}s limit)"
+                        elapsed = int(time.time() - start_time)
+                        return False, f"Execution timeout ({elapsed}s / {timeout_seconds}s limit)"
 
             except Exception:
                 pass
@@ -394,7 +379,6 @@ def extract_and_execute_python_code(text_content):
             # 等待进程结束
             process.wait()
             stderr_thread.join(timeout=5)
-            print()  # 进度条换行
 
             elapsed = time.time() - start_time
             full_stdout = ''.join(stdout_lines)

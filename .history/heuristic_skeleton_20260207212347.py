@@ -138,7 +138,7 @@ class HeuristicSolver:
         return solution
     
     def _fallback_regret_insert(self, solution, removed_nodes):
-        '''备用后悔插入算子（使用完整成本计算）'''
+        '''备用后悔插入算子（k=2 regret）'''
         if not removed_nodes:
             return solution
         if not solution:
@@ -155,39 +155,26 @@ class HeuristicSolver:
             
             for node in remaining:
                 node_demand = self.id_to_customer[node].get('demand', 0)
-                costs = []  # (cost_increase, route_idx, position)
+                # 收集所有插入位置的成本
+                costs = []
                 
                 # 现有路径的位置
                 for route_idx, route in enumerate(solution):
+                    # 检查容量约束
                     current_load = sum(self.id_to_customer[n].get('demand', 0) 
                                       for n in route if n != 0)
                     if current_load + node_demand > capacity:
                         continue
                     
-                    # 计算插入前的成本
-                    route_before = [self.id_to_customer[n] for n in route]
-                    cost_before = self.calculator.calculate_route_cost(
-                        route_before, self.dist_matrix
-                    )['variable_cost']
-                    
                     for pos in range(1, len(route)):
-                        # 计算插入后的成本
-                        route_after = route[:pos] + [node] + route[pos:]
-                        route_after_nodes = [self.id_to_customer[n] for n in route_after]
-                        cost_after = self.calculator.calculate_route_cost(
-                            route_after_nodes, self.dist_matrix
-                        )['variable_cost']
-                        
-                        cost_inc = cost_after - cost_before
+                        prev, next_n = route[pos-1], route[pos]
+                        cost_inc = (self.dist_matrix[prev][node] + 
+                                   self.dist_matrix[node][next_n] - 
+                                   self.dist_matrix[prev][next_n])
                         costs.append((cost_inc, route_idx, pos))
                 
-                # 新建路径的成本（包括固定成本）
-                new_route = [0, node, 0]
-                route_nodes_new = [self.id_to_customer[n] for n in new_route]
-                new_cost = self.calculator.calculate_route_cost(
-                    route_nodes_new, self.dist_matrix
-                )['variable_cost']
-                new_cost += self.calculator.f  # 固定成本
+                # 新建路径的成本
+                new_cost = self.dist_matrix[0][node] + self.dist_matrix[node][0]
                 costs.append((new_cost, None, None))
                 
                 # 排序找最佳和次佳
@@ -204,7 +191,7 @@ class HeuristicSolver:
                     best_route_idx = costs[0][1]
                     best_position = costs[0][2]
             
-            # 如果找不到节点，强制插入剩余所有节点
+            # ===== 关键保护：如果找不到节点，强制插入剩余所有节点 =====
             if best_node is None:
                 print(f"[警告] 后悔插入失败，{len(remaining)} 个节点创建独立路径")
                 for node in remaining:
@@ -218,8 +205,6 @@ class HeuristicSolver:
                 solution.append([0, best_node, 0])
             
             remaining.remove(best_node)
-        
-        return solution
         
         return solution
     
@@ -838,12 +823,17 @@ class HeuristicSolver:
         
         return True
     
-    def solve(self, max_iters=300):
+    def solve(self, max_iters=300, seed=None):
         '''ALNS 求解器
         
         Args:
             max_iters: 最大迭代次数
+            seed: 随机种子（设置后结果可重复）
         '''
+        if seed is not None:
+            random.seed(seed)
+            print(f"[初始化] 随机种子: {seed}")
+        
         print(f"[初始化] 开始生成初始解... (迭代次数: {max_iters})")
         
         non_depot = [c for c in self.customers if c['id'] != 0]
@@ -1128,29 +1118,15 @@ class HeuristicSolver:
         print(f"【最终结果】最后改进: 第 {last_improve_iter} 次迭代")
         print(f"{'='*60}\n")
         
-        # 打印算子统计（供可视化提取）
-        destroy_names = ['random_removal', 'route_removal', 'string_removal']
-        insert_names = ['greedy_insert', 'regret_insert']
-        print("【算子统计】")
-        for idx, name in enumerate(destroy_names):
-            if idx in self.op_stats['destroy']:
-                s = self.op_stats['destroy'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        for idx, name in enumerate(insert_names):
-            if idx in self.op_stats['insert']:
-                s = self.op_stats['insert'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        
         return best_solution, best_cost
     
-    def solve_multi_run(self, max_iters=300, num_runs=3):
+    def solve_multi_run(self, max_iters=300, num_runs=3, base_seed=42):
         '''多次运行取最优解
         
         Args:
             max_iters: 每次运行的迭代次数
             num_runs: 运行次数
+            base_seed: 基础随机种子（确保可重复）
         '''
         best_overall = float('inf')
         best_sol_overall = None
@@ -1161,7 +1137,8 @@ class HeuristicSolver:
             print(f"# 第 {run+1}/{num_runs} 次运行")
             print(f"{'#'*60}")
             
-            sol, cost = self.solve(max_iters=max_iters)
+            # 每次使用不同但可控的种子
+            sol, cost = self.solve(max_iters=max_iters, seed=base_seed + run)
             all_costs.append(cost)
             
             if cost < best_overall:

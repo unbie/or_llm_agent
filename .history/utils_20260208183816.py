@@ -5,6 +5,7 @@ import tempfile
 import os
 import time
 import threading
+from tqdm import tqdm
 
 # util.py
 import math
@@ -287,12 +288,11 @@ def extract_and_execute_python_code(text_content):
             start_time = time.time()
 
             # 进度追踪变量
-            current_run = 1       # 默认视为第1轮（单次运行）
+            current_run = 0
             total_runs = 1
             max_iters = 0
             current_iter = 0
-            iter_start_time = None  # 迭代阶段开始时间
-            last_best_cost = None   # 最新最优成本（用于在进度条中显示）
+            best_cost_str = "?"
 
             # 用线程读取 stderr，防止死锁
             def _read_stderr():
@@ -301,17 +301,10 @@ def extract_and_execute_python_code(text_content):
             stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
             stderr_thread.start()
 
-            def _format_time(seconds):
-                """格式化秒数为可读时间"""
-                if seconds < 60:
-                    return f"{seconds:.0f}s"
-                elif seconds < 3600:
-                    return f"{int(seconds)//60}m{int(seconds)%60}s"
-                else:
-                    return f"{int(seconds)//3600}h{int(seconds)%3600//60}m"
+            # tqdm 进度条（总步数后续动态设置）
+            pbar = None
 
-            # 主线程实时读取 stdout 并打印进度（单行刷新模式）
-            in_iter_phase = False  # 是否进入迭代阶段
+            # 主线程实时读取 stdout 并打印进度
             try:
                 for line in process.stdout:
                     stdout_lines.append(line)
@@ -325,68 +318,71 @@ def extract_and_execute_python_code(text_content):
                     if run_match:
                         current_run = int(run_match.group(1))
                         total_runs = int(run_match.group(2))
-                        iter_start_time = None
-                        in_iter_phase = False
+                        # 创建或重置 tqdm 进度条
+                        if pbar is not None:
+                            pbar.close()
+                        total_steps = max_iters if max_iters > 0 else 600
+                        pbar = tqdm(
+                            total=total_steps,
+                            desc=f"轮次 {current_run}/{total_runs}",
+                            unit="iter",
+                            bar_format="{l_bar}{bar:30}{r_bar}",
+                            dynamic_ncols=True,
+                        )
+                        current_iter = 0
 
                     # 检测迭代次数参数: "迭代次数: 600"
                     iters_match = re.search(r'迭代次数:\s*(\d+)', stripped)
                     if iters_match:
                         max_iters = int(iters_match.group(1))
-
-                    # 检测新最优解: "[迭代 107] ✓ 新最优解! 成本: 46414.68"
-                    best_match = re.search(r'成本:\s*([\d.]+)', stripped)
-                    if '✓' in stripped and best_match:
-                        last_best_cost = best_match.group(1)
+                        # 如果已有进度条，更新总数
+                        if pbar is not None and pbar.total != max_iters:
+                            pbar.total = max_iters
+                            pbar.refresh()
 
                     # 检测当前迭代: "Iter  100:"
                     iter_match = re.search(r'Iter\s+(\d+):', stripped)
                     if iter_match:
-                        current_iter = int(iter_match.group(1))
-                        if iter_start_time is None:
-                            iter_start_time = time.time()
-                        in_iter_phase = True
+                        new_iter = int(iter_match.group(1))
+                        if pbar is not None:
+                            delta = new_iter - current_iter
+                            if delta > 0:
+                                pbar.update(delta)
+                            # 更新后缀信息
+                            elapsed = time.time() - start_time
+                            overall_done = (current_run - 1) * max_iters + new_iter if max_iters > 0 else 0
+                            overall_total = total_runs * max_iters if max_iters > 0 else 1
+                            if overall_done > 0:
+                                eta = elapsed / overall_done * (overall_total - overall_done)
+                                pbar.set_postfix_str(f"最优={best_cost_str} 总ETA={time.strftime('%M:%S', time.gmtime(eta))}")
+                        current_iter = new_iter
 
-                    # --- 构造进度显示 ---
-                    elapsed = time.time() - start_time
+                    # 检测最优成本更新: "✓ 新最优解! 成本: 48210.55"
+                    best_match = re.search(r'成本:\s*([\d.]+)', stripped)
+                    if best_match and '最优' in stripped or '✓' in stripped:
+                        best_cost_str = best_match.group(1)
+                        if pbar is not None:
+                            tqdm.write(f"  ✓ 新最优解: {best_cost_str}")
 
-                    if max_iters > 0 and current_run > 0 and in_iter_phase and iter_match:
-                        # 迭代阶段：单行覆盖刷新进度条
-                        run_progress = current_iter / max_iters
-                        overall_progress = ((current_run - 1) + run_progress) / total_runs
-
-                        eta_str = ""
-                        if overall_progress > 0.01:
-                            eta = elapsed / overall_progress - elapsed
-                            eta_str = f" | 剩余: {_format_time(eta)}"
-
-                        pct = overall_progress * 100
-                        filled = int(pct // 5)
-                        progress_bar = f"[{'█' * filled}{'░' * (20 - filled)}]"
-                        best_str = f" | 最优: {last_best_cost}" if last_best_cost else ""
-                        # \r 回到行首覆盖，end="" 不换行
-                        print(f"\r  [求解进度] {progress_bar} {pct:5.1f}% | 轮次{current_run}/{total_runs} 迭代{current_iter:3d}/{max_iters}{best_str} | 已用: {_format_time(elapsed)}{eta_str}    ", end="", flush=True)
-                    elif not in_iter_phase:
-                        # 非迭代阶段（初始化、汇总等）：正常换行打印关键信息
+                    # 非迭代的关键信息直接打印
+                    elif not iter_match:
                         if any(kw in stripped for kw in [
-                            'BEST_COST', '最优', '最终', '汇总',
-                            '[Initialization]', '[初始化]', '[参数]',
-                            'Runtime Exception', '第 ', '####', '***',
+                            'BEST_COST', '最终', '汇总', '重启',
+                            '[Initialization]', 'Runtime Exception',
                         ]):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
-                    else:
-                        # 迭代阶段的非 Iter 行（重启、汇总等）：换行打印
-                        if any(kw in stripped for kw in ['重启', '最终', '汇总', 'BEST_COST', '***', '后处理']):
-                            print(f"\n  [求解进度] {stripped} ({_format_time(elapsed)})")
-                            if '汇总' in stripped or 'BEST_COST' in stripped:
-                                in_iter_phase = False  # 本轮迭代结束
+                            if pbar is not None:
+                                tqdm.write(f"  {stripped}")
+                            else:
+                                print(f"  {stripped}")
 
                     # 检查超时
                     if time.time() - start_time > timeout_seconds:
+                        if pbar is not None:
+                            pbar.close()
                         process.kill()
                         process.wait()
-                        elapsed_int = int(time.time() - start_time)
-                        print()  # 换行
-                        return False, f"Execution timeout ({elapsed_int}s / {timeout_seconds}s limit)"
+                        elapsed = int(time.time() - start_time)
+                        return False, f"Execution timeout ({elapsed}s / {timeout_seconds}s limit)"
 
             except Exception:
                 pass
@@ -394,7 +390,6 @@ def extract_and_execute_python_code(text_content):
             # 等待进程结束
             process.wait()
             stderr_thread.join(timeout=5)
-            print()  # 进度条换行
 
             elapsed = time.time() - start_time
             full_stdout = ''.join(stdout_lines)

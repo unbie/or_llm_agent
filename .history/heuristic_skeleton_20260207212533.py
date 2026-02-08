@@ -838,12 +838,17 @@ class HeuristicSolver:
         
         return True
     
-    def solve(self, max_iters=300):
+    def solve(self, max_iters=300, seed=None):
         '''ALNS 求解器
         
         Args:
             max_iters: 最大迭代次数
+            seed: 随机种子（设置后结果可重复）
         '''
+        if seed is not None:
+            random.seed(seed)
+            print(f"[初始化] 随机种子: {seed}")
+        
         print(f"[初始化] 开始生成初始解... (迭代次数: {max_iters})")
         
         non_depot = [c for c in self.customers if c['id'] != 0]
@@ -1128,29 +1133,15 @@ class HeuristicSolver:
         print(f"【最终结果】最后改进: 第 {last_improve_iter} 次迭代")
         print(f"{'='*60}\n")
         
-        # 打印算子统计（供可视化提取）
-        destroy_names = ['random_removal', 'route_removal', 'string_removal']
-        insert_names = ['greedy_insert', 'regret_insert']
-        print("【算子统计】")
-        for idx, name in enumerate(destroy_names):
-            if idx in self.op_stats['destroy']:
-                s = self.op_stats['destroy'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        for idx, name in enumerate(insert_names):
-            if idx in self.op_stats['insert']:
-                s = self.op_stats['insert'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        
         return best_solution, best_cost
     
-    def solve_multi_run(self, max_iters=300, num_runs=3):
+    def solve_multi_run(self, max_iters=300, num_runs=3, base_seed=42):
         '''多次运行取最优解
         
         Args:
             max_iters: 每次运行的迭代次数
             num_runs: 运行次数
+            base_seed: 基础随机种子（确保可重复）
         '''
         best_overall = float('inf')
         best_sol_overall = None
@@ -1161,7 +1152,8 @@ class HeuristicSolver:
             print(f"# 第 {run+1}/{num_runs} 次运行")
             print(f"{'#'*60}")
             
-            sol, cost = self.solve(max_iters=max_iters)
+            # 每次使用不同但可控的种子
+            sol, cost = self.solve(max_iters=max_iters, seed=base_seed + run)
             all_costs.append(cost)
             
             if cost < best_overall:

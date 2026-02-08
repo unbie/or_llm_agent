@@ -1128,21 +1128,6 @@ class HeuristicSolver:
         print(f"【最终结果】最后改进: 第 {last_improve_iter} 次迭代")
         print(f"{'='*60}\n")
         
-        # 打印算子统计（供可视化提取）
-        destroy_names = ['random_removal', 'route_removal', 'string_removal']
-        insert_names = ['greedy_insert', 'regret_insert']
-        print("【算子统计】")
-        for idx, name in enumerate(destroy_names):
-            if idx in self.op_stats['destroy']:
-                s = self.op_stats['destroy'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        for idx, name in enumerate(insert_names):
-            if idx in self.op_stats['insert']:
-                s = self.op_stats['insert'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        
         return best_solution, best_cost
     
     def solve_multi_run(self, max_iters=300, num_runs=3):

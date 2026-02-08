@@ -287,7 +287,7 @@ def extract_and_execute_python_code(text_content):
             start_time = time.time()
 
             # 进度追踪变量
-            current_run = 1       # 默认视为第1轮（单次运行）
+            current_run = 0
             total_runs = 1
             max_iters = 0
             current_iter = 0
@@ -394,7 +394,6 @@ def extract_and_execute_python_code(text_content):
             # 等待进程结束
             process.wait()
             stderr_thread.join(timeout=5)
-            print()  # 进度条换行
 
             elapsed = time.time() - start_time
             full_stdout = ''.join(stdout_lines)

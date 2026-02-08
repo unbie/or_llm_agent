@@ -37,7 +37,8 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 ║    4. greedy_insert   - 贪心修复                             ║
 ║    5. regret_insert   - 后悔修复                             ║
 ║                                                              ║
-║  ✅ 只实现以上5个方法，不多不少，不要增加其他方法名          ║
+║  ❌ 不要实现 worst_removal！不要删除任何算子！               ║
+║  ❌ 不要自作主张减少到3个方法！必须有5个方法！               ║
 ╚══════════════════════════════════════════════════════════════╝
 
 【关键要求 - 必须使用完整成本计算】：
@@ -513,8 +514,6 @@ class HeuristicPlugin:
 ```
 
 【最后检查清单】：
-✅ 是否恰好实现了以下5个方法：random_removal, route_removal, string_removal, greedy_insert, regret_insert
-✅ 是否只有这5个方法，没有多余的方法
 ✅ 所有removal算子是否有 `n = min(n, total_customers)` 防止越界
 ✅ random_removal 是否降序排序 `reverse=True`
 ✅ route_removal 是否降序删除路径 `routes_to_remove.sort(reverse=True)`
@@ -522,7 +521,6 @@ class HeuristicPlugin:
 ✅ greedy_insert 的 best_cost_increase 是否初始化为 `float('inf')`
 ✅ greedy_insert 是否用 `<=` 比较（不是 `<`）
 ✅ regret_insert 是否处理空列表 `if not removed_nodes`
-✅ regret_insert 的后悔值计算是否基于每条路径的最佳位置（性能优化）
 ✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【⚠️ 最关键检查 - 成本计算】：

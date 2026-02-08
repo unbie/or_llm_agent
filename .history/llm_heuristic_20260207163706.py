@@ -222,40 +222,21 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
         code_match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
         llm_plugin_code = code_match.group(1).strip() if code_match else llm_response
         
-        # === 检查是否使用了完整成本计算 ===
-        uses_full_cost = "self.solver.calculator.calculate_route_cost" in llm_plugin_code
-        uses_simple_dist = "self.dist_matrix[" in llm_plugin_code and "- self.dist_matrix[" in llm_plugin_code
-        print(f"\n[成本计算检查] 使用完整成本: {uses_full_cost}, 使用简化距离: {uses_simple_dist}")
-        if not uses_full_cost:
-            print("⚠️ 警告：LLM生成的代码未使用完整成本计算函数！")
-        
         # === 强制提取 HeuristicPlugin 类（防止 LLM 生成其他内容）===
         print("\n[Code Generation] Extracting HeuristicPlugin class...")
         
-        # === 统一的 __init__ 方法（与提示模板和执行代码一致）===
-        unified_init = (
-            "    def __init__(self, *args, **kwargs):\n"
-            "        # 支持 HeuristicPlugin(data=data) 调用方式\n"
-            "        _data = kwargs.get('data', {})\n"
-            "        self.capacity = _data.get('vehicle_capacity', 200)\n"
-            "        self.customers = _data.get('customers', [])\n"
-            "        self.dist_matrix = None  # 由 Solver 注入\n"
-            "        self.solver = None  # 由 Solver 注入\n"
-            "        self.customer_lookup = {c['id']: c for c in self.customers}\n"
-        )
-        
-        # 方案 1: 如果 LLM 生成了完整的类定义，只保留方法部分（跳过 __init__）
+        # 方案 1: 如果 LLM 生成了完整的类定义，只保留方法部分
         if "class HeuristicPlugin:" in llm_plugin_code:
-            # 提取类中的方法（去掉类定义行和 __init__）
+            # 提取类中的方法（去掉类定义行）
             lines = llm_plugin_code.split('\n')
             method_lines = []
             in_class = False
-            skip_init = False
-            init_indent = 0
+            indent_level = 0
             
             for line in lines:
                 if 'class HeuristicPlugin:' in line:
                     in_class = True
+                    indent_level = len(line) - len(line.lstrip())
                     continue  # 跳过类定义行
                 
                 if in_class:
@@ -263,32 +244,24 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
                     if line.strip() and not line.startswith(' ') and not line.startswith('\t'):
                         if 'class ' in line:
                             break
-                    
-                    # 跳过 LLM 生成的 __init__ 方法
-                    stripped = line.lstrip()
-                    if stripped.startswith('def __init__'):
-                        skip_init = True
-                        init_indent = len(line) - len(stripped)
-                        continue
-                    if skip_init:
-                        # 如果遇到同级别或更高级别的 def，停止跳过
-                        if stripped.startswith('def ') and (len(line) - len(stripped)) <= init_indent:
-                            skip_init = False
-                        else:
-                            continue
-                    
                     method_lines.append(line)
             
-            # 重新构建完整的 Plugin 类（使用统一的 __init__）
+            # 重新构建完整的 Plugin 类
             plugin_class_code = "class HeuristicPlugin:\n"
-            plugin_class_code += unified_init + "\n"
+            plugin_class_code += "    def __init__(self, *args, **kwargs):\n"
+            plugin_class_code += "        self.dist_matrix = kwargs.get('dist_matrix')\n"
+            plugin_class_code += "        self.vehicle_capacity = kwargs.get('vehicle_capacity', 200)\n"
+            plugin_class_code += "        self.nodes_dict = kwargs.get('nodes_dict')\n\n"
             plugin_class_code += '\n'.join(method_lines)
             
             print(f"[Code Generation] HeuristicPlugin class reconstructed ({len(plugin_class_code)} chars)")
         else:
             # 方案 2: 如果只生成了方法，手动添加类框架
             plugin_class_code = "class HeuristicPlugin:\n"
-            plugin_class_code += unified_init + "\n"
+            plugin_class_code += "    def __init__(self, *args, **kwargs):\n"
+            plugin_class_code += "        self.dist_matrix = kwargs.get('dist_matrix')\n"
+            plugin_class_code += "        self.vehicle_capacity = kwargs.get('vehicle_capacity', 200)\n"
+            plugin_class_code += "        self.nodes_dict = kwargs.get('nodes_dict')\n\n"
             
             # 给 LLM 生成的方法添加缩进
             indented_methods = '\n'.join('    ' + line if line.strip() else line 
@@ -297,70 +270,6 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             
             print(f"[Code Generation] HeuristicPlugin class constructed ({len(plugin_class_code)} chars)")
 
-        # === 自动补全缺失方法（防止 AttributeError）===
-        required_destroy_methods = ['random_removal', 'route_removal', 'string_removal']
-        required_insert_methods = ['greedy_insert', 'regret_insert']
-        
-        for method_name in required_destroy_methods:
-            if f'def {method_name}' not in plugin_class_code:
-                print(f"[Auto-Fix] 补全缺失的破坏算子: {method_name}")
-                if method_name == 'route_removal':
-                    stub = (
-                        "\n    def route_removal(self, solution, ratio):\n"
-                        "        \"\"\"路径移除：随机移除整条路径\"\"\"\n"
-                        "        if not solution:\n"
-                        "            return solution, []\n"
-                        "        non_empty = [(i, [n for n in r if n != 0]) for i, r in enumerate(solution) if any(n != 0 for n in r)]\n"
-                        "        if not non_empty:\n"
-                        "            return solution, []\n"
-                        "        idx, customers = random.choice(non_empty)\n"
-                        "        new_sol = [r[:] for i, r in enumerate(solution) if i != idx]\n"
-                        "        return new_sol, customers\n"
-                    )
-                elif method_name == 'string_removal':
-                    stub = (
-                        "\n    def string_removal(self, solution, ratio):\n"
-                        "        \"\"\"连续节点移除：委托给random_removal\"\"\"\n"
-                        "        return self.random_removal(solution, ratio)\n"
-                    )
-                else:  # random_removal
-                    stub = (
-                        "\n    def random_removal(self, solution, ratio):\n"
-                        "        \"\"\"随机移除\"\"\"\n"
-                        "        all_n = [(ri,pi,n) for ri,r in enumerate(solution) for pi,n in enumerate(r) if n!=0]\n"
-                        "        if not all_n: return solution, []\n"
-                        "        total = len(all_n)\n"
-                        "        k = min(total, max(1, int(ratio) if ratio>1 else math.ceil(total*ratio)))\n"
-                        "        sel = random.sample(all_n, k)\n"
-                        "        sel.sort(key=lambda x:(x[0],x[1]), reverse=True)\n"
-                        "        ns = [r[:] for r in solution]\n"
-                        "        rm = []\n"
-                        "        for ri,pi,n in sel: del ns[ri][pi]; rm.append(n)\n"
-                        "        ns = [r for r in ns if len(r)>2]\n"
-                        "        return ns, rm\n"
-                    )
-                plugin_class_code += stub
-        
-        for method_name in required_insert_methods:
-            if f'def {method_name}' not in plugin_class_code:
-                print(f"[Auto-Fix] 补全缺失的修复算子: {method_name}")
-                if method_name == 'regret_insert':
-                    stub = (
-                        "\n    def regret_insert(self, solution, removed_nodes):\n"
-                        "        \"\"\"后悔插入：委托给greedy_insert\"\"\"\n"
-                        "        return self.greedy_insert(solution, removed_nodes)\n"
-                    )
-                else:  # greedy_insert - use fallback
-                    stub = (
-                        "\n    def greedy_insert(self, solution, removed_nodes):\n"
-                        "        \"\"\"贪心插入：随机插入\"\"\"\n"
-                        "        if not removed_nodes: return solution\n"
-                        "        ns = [r[:] for r in solution] if solution else []\n"
-                        "        for node in removed_nodes: ns.append([0, node, 0])\n"
-                        "        return ns\n"
-                    )
-                plugin_class_code += stub
-        
         # === 拼接最终脚本（关键修改）===
         full_code = (
             "# -*- coding: utf-8 -*-\n"
@@ -379,7 +288,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve(max_iters=800)\n"
+            "        best_sol, best_cost = solver.solve_multi_run(max_iters=1000, num_runs=5, base_seed=None)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -410,14 +319,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
         messages.append({"role": "assistant", "content": llm_response})
         messages.append({
             "role": "user", 
-            "content": f"Code execution encountered issues. Please refine the implementation.\n\nDebug information:\n{result_msg}\n\n"
-            f"【重要】你的类必须恰好包含以下5个方法：\n"
-            f"  1. random_removal(self, solution, ratio)\n"
-            f"  2. route_removal(self, solution, ratio)\n"
-            f"  3. string_removal(self, solution, ratio)\n"
-            f"  4. greedy_insert(self, solution, removed_nodes)\n"
-            f"  5. regret_insert(self, solution, removed_nodes)\n"
-            f"只实现这5个，不多不少。regret_insert 中只需比较每条路径的最佳插入位置即可。"
+            "content": f"Code execution encountered issues. Please refine the implementation.\n\nDebug information:\n{result_msg}\n\nNote: Implement random_removal, worst_removal, and greedy_insert methods."
         })
         attempt += 1
 
@@ -522,38 +424,22 @@ def extract_iteration_history(output):
     return iterations, cost_history, best_history
 
 def visualize_results(dataset, solution, best_cost, output):
-    """生成学术风格的可视化图表"""
-    # === 学术风格全局设置 ===
-    plt.rcParams.update({
-        'font.family': 'serif',
-        'font.serif': ['Times New Roman', 'SimSun'],  # 英文用 TNR，中文回退宋体
-        'mathtext.fontset': 'stix',
-        'axes.unicode_minus': False,
-        'axes.linewidth': 0.8,
-        'axes.labelsize': 11,
-        'axes.titlesize': 12,
-        'xtick.labelsize': 9,
-        'ytick.labelsize': 9,
-        'legend.fontsize': 9,
-        'figure.dpi': 150,
-        'savefig.dpi': 600,
-        'lines.linewidth': 1.2,
-        'grid.alpha': 0.3,
-        'grid.linewidth': 0.5,
-        'grid.linestyle': '--',
-    })
+    """生成可视化图表"""
+    try:
+        plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']  # 支持中文
+    except:
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False
     
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4.8))
+    fig = plt.figure(figsize=(18, 6))
     
-    # ═══════════════════════════════════════════════════
-    # (a) Convergence Curve
-    # ═══════════════════════════════════════════════════
-    ax1 = axes[0]
+    # 子图1: 迭代历史
+    ax1 = plt.subplot(1, 3, 1)
     iterations, cost_history, best_history = extract_iteration_history(output)
     
     if cost_history and best_history and iterations:
-        # 移动平均平滑
-        window_size = max(5, len(cost_history) // 10)
+        # 计算移动平均，平滑曲线
+        window_size = max(5, len(cost_history) // 10)  # 窗口大小为10%的数据点（更平滑）
         
         def moving_average(data, window):
             if len(data) < window:
@@ -567,177 +453,175 @@ def visualize_results(dataset, solution, best_cost, output):
         
         cost_smooth = moving_average(cost_history, window_size)
         
-        # 学术配色：灰 + 蓝 + 红
-        ax1.plot(iterations, cost_history, color='#B0B0B0', linewidth=0.6, alpha=0.4, label='Current cost (raw)')
-        ax1.plot(iterations, cost_smooth, color='#2166AC', linewidth=1.4, label='Current cost (smoothed)')
-        ax1.plot(iterations, best_history, color='#B2182B', linewidth=1.6, linestyle='-', label='Best cost')
+        # 显示原始当前成本（淡）+ 平滑趋势 + 最优成本
+        ax1.plot(iterations, cost_history, color='steelblue', linewidth=1.0, alpha=0.25, label='当前成本（原始）')
+        ax1.plot(iterations, cost_smooth, 'b-', linewidth=2.2, label='当前成本（平滑）', alpha=0.9)
+        ax1.plot(iterations, best_history, 'r-', linewidth=2.4, label='最优成本')
         
-        # y 轴范围
+        # 优化y轴范围
         min_cost = min(min(best_history), min(cost_smooth))
         max_cost = max(max(best_history), max(cost_smooth))
         y_range = max_cost - min_cost
         if y_range > 0:
-            ax1.set_ylim(min_cost - y_range * 0.05, max_cost + y_range * 0.08)
+            y_margin = y_range * 0.08
+            ax1.set_ylim(min_cost - y_margin, max_cost + y_margin)
         
-        # 标注最优解（简洁学术箭头）
+        ax1.set_xlabel('迭代次数', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('成本', fontsize=12, fontweight='bold')
+        ax1.set_title('ALNS算法收敛曲线', fontsize=14, fontweight='bold')
+        ax1.legend(fontsize=10, loc='upper right')
+        ax1.grid(True, alpha=0.25, linestyle='--', linewidth=0.5)
+        
+        # 标注关键点：初始、最终、最优
+        start_idx = 0
+        end_idx = len(iterations) - 1
         min_idx = best_history.index(min(best_history))
-        ax1.annotate(
-            f'{best_history[min_idx]:.2f}',
-            xy=(iterations[min_idx], best_history[min_idx]),
-            xytext=(30, 20), textcoords='offset points',
-            fontsize=9, color='#B2182B',
-            arrowprops=dict(arrowstyle='->', color='#B2182B', lw=1.0),
-            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='#B2182B', linewidth=0.8, alpha=0.9)
-        )
         
-        ax1.set_xlabel('Iteration')
-        ax1.set_ylabel('Objective Value')
-        ax1.set_title('(a) ALNS Convergence Curve', fontweight='bold')
-        ax1.legend(loc='upper right', frameon=True, edgecolor='gray', fancybox=False, framealpha=0.9)
-        ax1.grid(True)
-        ax1.tick_params(direction='in', top=True, right=True)
+        ax1.plot(iterations[start_idx], cost_smooth[start_idx], 'o', color='navy', markersize=6, zorder=5)
+        ax1.annotate(f'初始: {cost_smooth[start_idx]:.2f}',
+                xy=(iterations[start_idx], cost_smooth[start_idx]),
+                xytext=(12, -16), textcoords='offset points',
+                fontsize=10, color='navy')
+        
+        ax1.plot(iterations[end_idx], cost_smooth[end_idx], 'o', color='navy', markersize=6, zorder=5)
+        ax1.annotate(f'最终: {cost_smooth[end_idx]:.2f}',
+                xy=(iterations[end_idx], cost_smooth[end_idx]),
+                xytext=(12, -16), textcoords='offset points',
+                fontsize=10, color='navy')
+        
+        ax1.plot(iterations[min_idx], best_history[min_idx], 'r*', markersize=18, zorder=6, markeredgecolor='darkred', markeredgewidth=2.0)
+        ax1.annotate(f'最优: {best_history[min_idx]:.2f}', 
+                xy=(iterations[min_idx], best_history[min_idx]),
+                xytext=(15, 15), textcoords='offset points',
+                fontsize=11, color='darkred', fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.85, edgecolor='red', linewidth=2),
+                arrowprops=dict(arrowstyle='->', color='red', lw=2))
     else:
-        ax1.text(0.5, 0.5, 'No iteration data', ha='center', va='center', transform=ax1.transAxes, fontsize=11)
-        ax1.set_title('(a) ALNS Convergence Curve', fontweight='bold')
+        ax1.text(0.5, 0.5, '无迭代数据', 
+                ha='center', va='center', transform=ax1.transAxes, fontsize=14)
+        ax1.set_title('ALNS算法收敛曲线', fontsize=14, fontweight='bold')
     
-    # ═══════════════════════════════════════════════════
-    # (b) Vehicle Routing Map
-    # ═══════════════════════════════════════════════════
-    ax2 = axes[1]
+    # 子图2: 车辆路线图
+    ax2 = plt.subplot(1, 3, 2)
     customers = dataset['customers']
+    
+    # 提取坐标
     depot = customers[0]
     depot_x, depot_y = depot['x'], depot['y']
     
-    # 学术配色方案（区分度高、打印友好）
-    academic_colors = [
-        '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd',
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-        '#393b79', '#637939', '#8c6d31', '#843c39', '#7b4173',
-        '#5254a3', '#6b6ecf', '#9c9ede', '#bd9e39', '#ad494a',
-    ]
+    # 绘制仓库
+    ax2.plot(depot_x, depot_y, 'rs', markersize=15, label='配送中心', zorder=5, markeredgecolor='darkred', markeredgewidth=2)
     
-    # 绘制路线
+    # 绘制客户点
+    customer_coords = [(c['x'], c['y']) for c in customers[1:]]
+    if customer_coords:
+        cx, cy = zip(*customer_coords)
+        ax2.scatter(cx, cy, c='blue', s=50, alpha=0.6, label='客户点', zorder=3, edgecolors='navy', linewidths=0.5)
+    
+    # 绘制路线 - 只有当solution存在且有效时
     if solution and len(solution) > 0:
+        colors = plt.cm.tab20(np.linspace(0, 1, max(20, len(solution))))
+        
         for idx, route in enumerate(solution):
             try:
+                # 确保路线包含仓库（节点0）作为起点和终点
                 if not route or len(route) == 0:
                     continue
+                
+                # 构建完整路线：仓库 -> 客户们 -> 仓库
                 complete_route = []
+                
+                # 添加起始仓库
                 if route[0] != 0:
                     complete_route.append(0)
+                
+                # 添加路线中的所有节点
                 complete_route.extend(route)
+                
+                # 添加终止仓库
                 if route[-1] != 0:
                     complete_route.append(0)
                 
-                route_x = [customers[n]['x'] for n in complete_route if n < len(customers)]
-                route_y = [customers[n]['y'] for n in complete_route if n < len(customers)]
+                # 提取路线所有节点的坐标
+                route_x = []
+                route_y = []
+                for node in complete_route:
+                    if node < len(customers):
+                        route_x.append(customers[node]['x'])
+                        route_y.append(customers[node]['y'])
                 
                 if len(route_x) >= 2:
-                    color = academic_colors[idx % len(academic_colors)]
-                    ax2.plot(route_x, route_y, '-', color=color, linewidth=1.0, alpha=0.7, zorder=2)
-                    # 客户点
+                    color = colors[idx % len(colors)]
+                    
+                    # 绘制完整路线（从仓库出发到每个客户再回到仓库），添加到图例
+                    ax2.plot(route_x, route_y, '-', color=color, linewidth=2.5, alpha=0.75, zorder=2, label=f'路线{idx+1}')
+                    
+                    # 绘制中间的客户点（不包括起始和结束的仓库）
                     if len(route_x) > 2:
-                        ax2.scatter(route_x[1:-1], route_y[1:-1], c=color, s=20, alpha=0.85,
-                                   zorder=4, edgecolors='black', linewidths=0.3)
-            except Exception:
+                        # 只绘制客户点，不绘制仓库点
+                        customer_x = route_x[1:-1]
+                        customer_y = route_y[1:-1]
+                        ax2.scatter(customer_x, customer_y, c=[color]*len(customer_x), s=80, alpha=0.9, 
+                                   zorder=4, edgecolors='black', linewidths=1.5)
+                    
+            except Exception as e:
+                print(f"[警告] 绘制路线 {idx+1} 时出错: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
     
-    # 仓库（黑色方块，学术常见标记）
-    ax2.plot(depot_x, depot_y, 's', color='black', markersize=10, zorder=6, label='Depot')
-    
-    # 所有客户点（灰色底层，在有路线时不重复绘制）
-    if not solution or len(solution) == 0:
-        customer_coords = [(c['x'], c['y']) for c in customers[1:]]
-        if customer_coords:
-            cx, cy = zip(*customer_coords)
-            ax2.scatter(cx, cy, c='#666666', s=15, alpha=0.5, zorder=3, label='Customer')
-    
-    ax2.set_xlabel('$x$ coordinate')
-    ax2.set_ylabel('$y$ coordinate')
+    ax2.set_xlabel('X 坐标', fontsize=12)
+    ax2.set_ylabel('Y 坐标', fontsize=12)
     route_count = len(solution) if solution else 0
-    ax2.set_title(f'(b) Vehicle Routes ($K$={route_count})', fontweight='bold')
-    ax2.grid(True)
-    ax2.set_aspect('equal')
-    ax2.tick_params(direction='in', top=True, right=True)
-    # 简化图例：只显示仓库标记
-    ax2.legend(loc='upper right', frameon=True, edgecolor='gray', fancybox=False, framealpha=0.9, markerscale=0.8)
+    ax2.set_title(f'车辆路线规划图 (共{route_count}条路线)', fontsize=14, fontweight='bold')
+    # 将图例放在图外右侧
+    ax2.legend(fontsize=8, loc='center left', bbox_to_anchor=(1.02, 0.5), ncol=1, frameon=True, fancybox=True, shadow=True)
+    ax2.grid(True, alpha=0.3, linestyle='--')
+    ax2.axis('equal')
     
-    # ═══════════════════════════════════════════════════
-    # (c) Operator Performance
-    # ═══════════════════════════════════════════════════
-    ax3 = axes[2]
+    # 子图3: 成本分解
+    ax3 = plt.subplot(1, 3, 3)
     
-    op_stats = extract_operator_stats(output)
+    # 提取多次运行的成本
+    multi_run_pattern = r'各次成本: \[(.*?)\]'
+    multi_run_match = re.search(multi_run_pattern, output)
     
-    if op_stats:
-        op_names = list(op_stats.keys())
-        uses = [op_stats[n]['uses'] for n in op_names]
-        rates = [op_stats[n]['rate'] for n in op_names]
+    if multi_run_match:
+        costs_str = multi_run_match.group(1)
+        costs = [float(c.strip().strip("'\"")) for c in costs_str.split(',')]
         
-        # 简化算子名称用于显示
-        short_names = []
-        for name in op_names:
-            short = name.replace('_removal', '\nremoval').replace('_insert', '\ninsert')
-            short_names.append(short)
+        runs = [f'第{i+1}次' for i in range(len(costs))]
+        colors_bar = ['#FF6B6B' if c == min(costs) else '#4ECDC4' for c in costs]
         
-        x_pos = list(range(len(op_names)))
+        bars = ax3.bar(runs, costs, color=colors_bar, alpha=0.8, edgecolor='black', linewidth=1.5)
+        ax3.axhline(y=min(costs), color='red', linestyle='--', linewidth=2, label=f'最优: {min(costs):.2f}')
+        ax3.axhline(y=sum(costs)/len(costs), color='green', linestyle='--', linewidth=2, label=f'平均: {sum(costs)/len(costs):.2f}')
         
-        # 按算子类型着色：破坏=蓝色，修复=红色
-        bar_colors = ['#4393C3' if 'insert' not in n else '#B2182B' for n in op_names]
-        bars = ax3.bar(x_pos, uses, color=bar_colors, alpha=0.8, edgecolor='black', linewidth=0.6, width=0.55)
-        ax3.set_ylabel('Usage Count', color='#333333')
+        ax3.set_ylabel('总成本', fontsize=12)
+        ax3.set_title('多次运行成本对比', fontsize=14, fontweight='bold')
+        ax3.legend(fontsize=11)
+        ax3.grid(True, axis='y', alpha=0.3, linestyle='--')
         
-        # 使用次数标注
-        for bar, use_count in zip(bars, uses):
-            ax3.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
-                    f'{use_count}', ha='center', va='bottom', fontsize=8)
-        
-        # 右 y 轴：成功率（折线图）
-        ax3_twin = ax3.twinx()
-        ax3_twin.plot(x_pos, rates, 'o-', color='#E66100', linewidth=1.4, markersize=5, zorder=5, label='Success rate')
-        ax3_twin.set_ylabel('Success Rate (%)', color='#E66100')
-        ax3_twin.set_ylim(0, max(rates) * 1.5 if max(rates) > 0 else 10)
-        ax3_twin.tick_params(axis='y', colors='#E66100', direction='in')
-        ax3_twin.spines['right'].set_color('#E66100')
-        
-        # 成功率数值标注
-        for xi, rate in zip(x_pos, rates):
-            ax3_twin.annotate(f'{rate:.1f}%', (xi, rate), textcoords='offset points',
-                            xytext=(0, 8), ha='center', fontsize=7.5, color='#E66100')
-        
-        ax3.set_xticks(x_pos)
-        ax3.set_xticklabels(short_names, fontsize=7.5)
-        ax3.set_title('(c) Operator Performance', fontweight='bold')
-        ax3.grid(True, axis='y')
-        ax3.tick_params(direction='in', top=True)
-        
-        # 图例
-        from matplotlib.patches import Patch
-        from matplotlib.lines import Line2D
-        legend_elements = [
-            Patch(facecolor='#4393C3', edgecolor='black', label='Destroy ops'),
-            Patch(facecolor='#B2182B', edgecolor='black', label='Repair ops'),
-            Line2D([0], [0], color='#E66100', marker='o', label='Success rate'),
-        ]
-        ax3.legend(handles=legend_elements, loc='upper left', frameon=True, edgecolor='gray',
-                  fancybox=False, framealpha=0.9, fontsize=7.5)
+        # 添加数值标签
+        for bar, cost in zip(bars, costs):
+            height = bar.get_height()
+            ax3.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{cost:.1f}',
+                    ha='center', va='bottom', fontsize=10, fontweight='bold')
     else:
-        ax3.text(0.5, 0.5, 'No operator data', ha='center', va='center', transform=ax3.transAxes, fontsize=11)
-        ax3.set_title('(c) Operator Performance', fontweight='bold')
+        ax3.text(0.5, 0.5, '无多次运行数据', 
+                ha='center', va='center', transform=ax3.transAxes, fontsize=14)
+        ax3.set_title('多次运行成本对比', fontsize=14, fontweight='bold')
     
-    plt.tight_layout(w_pad=2.5)
+    plt.tight_layout()
     
-    # 保存
+    # 保存到项目根目录
     import os
     project_dir = os.path.dirname(os.path.abspath(__file__))
     output_path = os.path.join(project_dir, 'vrp_result.png')
-    plt.savefig(output_path, dpi=600, bbox_inches='tight', facecolor='white', pad_inches=0.15)
-    # 同时保存 PDF（学术投稿用矢量图）
-    pdf_path = os.path.join(project_dir, 'vrp_result.pdf')
-    plt.savefig(pdf_path, bbox_inches='tight', facecolor='white', pad_inches=0.15)
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"[可视化] 图表已保存到: {output_path}")
-    print(f"[可视化] 矢量图已保存到: {pdf_path}")
 
 def extract_operator_stats(output):
     """从输出中提取算子统计信息"""
@@ -807,7 +691,7 @@ if __name__ == "__main__":
     model_name = 'ep-20260106214023-k4p8b'
     messages_bak = []
 
-    solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\c1\c105.txt"
+    solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\r1\r101.txt"
 
     dataset = load_solomon_data(solomon_file)
     # Patch time windows for depot
