@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #FFFFFF; font-family: Arial, 'Microsoft YaHei', sans-serif;
+  display: flex;
+}
+.sidebar { width: 8pt; background: #B165FB; }
+.content { flex: 1; padding: 40pt 50pt; }
+h1 { font-size: 28pt; color: #181B24; margin-bottom: 25pt; font-weight: bold; }
+.architecture-box {
+  background: #F8F9FA; padding: 20pt; margin-bottom: 15pt; border-left: 4pt solid #40695B;
+}
+.layer-title {
+  font-size: 18pt; color: #181B24; font-weight: bold; margin-bottom: 10pt;
+}
+.layer-items {
+  font-size: 13pt; color: #555555; line-height: 1.7;
+}
+.arrow {
+  text-align: center; font-size: 20pt; color: #B165FB; margin: 10pt 0;
+}
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h1>02 系统架构 System Architecture</h1>
+  
+  <div class="architecture-box">
+    <p class="layer-title">LLM 交互层 (Interaction Layer)</p>
+    <p class="layer-items">llm_heuristic.py + heuristic_prompts.py<br>
+    • LLM API 调用 • 代码提取与合并 • 多轮错误反馈</p>
+  </div>
+  
+  <p class="arrow">↓ 插件注入 (Plugin Pattern)</p>
+  
+  <div class="architecture-box">
+    <p class="layer-title">ALNS 框架层 (Framework Layer)</p>
+    <p class="layer-items">heuristic_skeleton.py<br>
+    • 破坏/修复阶段 • 轮盘赌选择 + Fallback<br>
+    • 模拟退火接受准则 • 自适应权重更新</p>
+  </div>
+  
+  <p class="arrow">↓ 成本评估</p>
+  
+  <div class="architecture-box">
+    <p class="layer-title">成本计算层 (Cost Layer)</p>
+    <p class="layer-items">utils.py - FreshnessAndPenaltyCalculator<br>
+    • C₁₁ 固定成本 • C₁₂ 距离成本 • C₁₃ 制冷成本<br>
+    • C₂ 货损成本 • C₃ 时间窗惩罚</p>
+  </div>
+</div>
+</body>
+</html>

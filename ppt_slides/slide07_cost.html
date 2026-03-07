@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #FFFFFF; font-family: Arial, 'Microsoft YaHei', sans-serif;
+  display: flex;
+}
+.sidebar { width: 8pt; background: #B165FB; }
+.content { flex: 1; padding: 40pt 50pt; }
+h1 { font-size: 28pt; color: #181B24; margin-bottom: 20pt; font-weight: bold; }
+.formula-box {
+  background: #181B24; color: #FFFFFF; padding: 20pt; margin: 15pt 0;
+  border-radius: 8pt; text-align: center; font-size: 20pt; font-family: 'Times New Roman';
+}
+.cost-grid {
+  display: flex; flex-wrap: wrap; gap: 10pt; margin-top: 15pt;
+}
+.cost-item {
+  flex: 1; min-width: 200pt; background: #F8F9FA; padding: 15pt; border-left: 3pt solid #40695B;
+}
+.cost-label {
+  font-size: 16pt; color: #B165FB; font-weight: bold; margin-bottom: 5pt;
+}
+.cost-desc {
+  font-size: 12pt; color: #555555; line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h1>04 成本模型 Cost Model</h1>
+  
+  <div class="formula-box">
+    C<sub>total</sub> = C₁₁ + C₁₂ + C₁₃ + C₂ + C₃
+  </div>
+  
+  <div class="cost-grid">
+    <div class="cost-item">
+      <p class="cost-label">C₁₁ 车辆固定成本</p>
+      <p class="cost-desc">K × 240 元/车</p>
+    </div>
+    
+    <div class="cost-item">
+      <p class="cost-label">C₁₂ 运输距离成本</p>
+      <p class="cost-desc">总距离 × 3 元/km</p>
+    </div>
+    
+    <div class="cost-item">
+      <p class="cost-label">C₁₃ 冷链制冷成本</p>
+      <p class="cost-desc">行驶时间 × 15 元/h</p>
+    </div>
+    
+    <div class="cost-item">
+      <p class="cost-label">C₂ 货损成本</p>
+      <p class="cost-desc">新鲜度衰减模型<br>r<sub>i</sub> = 1 - exp(-θ₁Δt - θ₂t')</p>
+    </div>
+    
+    <div class="cost-item">
+      <p class="cost-label">C₃ 时间窗惩罚</p>
+      <p class="cost-desc">早到 20 元/h<br>迟到 40 元/h<br>硬违反 300 元</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

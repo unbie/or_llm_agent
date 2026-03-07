@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #FFFFFF; font-family: Arial, 'Microsoft YaHei', sans-serif;
+  display: flex;
+}
+.sidebar { width: 8pt; background: #B165FB; }
+.content { flex: 1; padding: 40pt 50pt; }
+h1 { font-size: 28pt; color: #181B24; margin-bottom: 20pt; font-weight: bold; }
+.timeline {
+  margin-top: 15pt;
+}
+.phase {
+  margin-bottom: 18pt; padding-left: 25pt; border-left: 3pt solid #DDDDDD;
+}
+.phase-active {
+  border-left-color: #B165FB;
+}
+.phase-title {
+  font-size: 16pt; color: #181B24; font-weight: bold; margin-bottom: 5pt;
+}
+.phase-problems {
+  font-size: 12pt; color: #555555; line-height: 1.5; margin-bottom: 4pt;
+}
+.problem-count {
+  display: inline-block; background: #F0F4FF; color: #B165FB; padding: 2pt 8pt; 
+  border-radius: 3pt; font-weight: bold; margin-right: 6pt;
+}
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h1>05 开发历程 Development Journey</h1>
+  
+  <div class="timeline">
+    <div class="phase phase-active">
+      <p class="phase-title"><span class="problem-count">4</span>阶段 1: 框架搭建</p>
+      <p class="phase-problems">__init__ 属性不匹配 | LLM 生成错误算子 | 简化距离计算 | 代码执行超时</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">3</span>阶段 2: 参数调优</p>
+      <p class="phase-problems">随机种子固定 | 迭代次数不足 | 可视化风格不当</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">4</span>阶段 3: 结构优化</p>
+      <p class="phase-problems">多次运行冗余 | 进度条失效 | 图表空白 | 统计数据未输出</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">2</span>阶段 4: 性能提升</p>
+      <p class="phase-problems">route_removal 算子饥饿 | 图表标注重叠</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">2</span>阶段 5: 工程完善</p>
+      <p class="phase-problems">Notebook 代码重复 | 文件编辑失败</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">4</span>阶段 6: 收敛曲线优化</p>
+      <p class="phase-problems">温度参数过激 | 破坏比例过大 | 固定阈值不缩放 | 缺成本上限保护</p>
+    </div>
+    
+    <div class="phase">
+      <p class="phase-title"><span class="problem-count">4</span>阶段 7: 可视化增强</p>
+      <p class="phase-problems">多运行数据混合 | 缺少平滑处理 | Current Cost 语义混淆</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

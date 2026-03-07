@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="100%" height="100%" style="background-color: #f7f8fa; font-family: 'Segoe UI', -apple-system, sans-serif;">
+  
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1b4168" />
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b04f4a" />
+    </marker>
+    <marker id="arrowBlueThick" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1b4168" />
+    </marker>
+    
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <rect x="20" y="20" width="1160" height="190" fill="none" stroke="#2b3b4e" stroke-width="2" stroke-dasharray="8,5" rx="10"/>
+  <text x="40" y="55" font-size="22" font-weight="bold" font-style="italic" fill="#1a1a1a">LLM-Driven Heuristic Generation</text>
+  <text x="40" y="195" font-size="18" font-style="italic" fill="#333333">(Intelligent Agent Layer)</text>
+
+  <rect x="50" y="80" width="190" height="70" fill="#d2e3eb" stroke="#1b4168" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <rect x="65" y="95" width="20" height="28" fill="none" stroke="#48748c" stroke-width="2"/>
+  <line x1="70" y1="102" x2="80" y2="102" stroke="#48748c" stroke-width="2"/>
+  <line x1="70" y1="108" x2="80" y2="108" stroke="#48748c" stroke-width="2"/>
+  <line x1="70" y1="114" x2="80" y2="114" stroke="#48748c" stroke-width="2"/>
+  <text x="95" y="112" font-size="16" font-weight="bold" fill="#111111">
+    <tspan x="105" dy="-5">Constraint</tspan>
+    <tspan x="105" dy="20">Prompts</tspan>
+  </text>
+
+  <line x1="240" y1="115" x2="310" y2="115" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="325" y="80" width="260" height="70" fill="#7ba8a1" stroke="#5a827c" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <circle cx="355" cy="115" r="14" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <path d="M 345 115 Q 355 100 365 115" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="345" cy="105" r="3" fill="#ffffff"/>
+  <circle cx="365" cy="105" r="3" fill="#ffffff"/>
+  <circle cx="355" cy="125" r="3" fill="#ffffff"/>
+  <text x="385" y="112" font-size="18" font-weight="bold" fill="#ffffff">
+    <tspan x="385" dy="-2">DeepSeek R1</tspan>
+    <tspan x="385" dy="22" font-size="16" font-weight="normal">(Reasoning Model)</tspan>
+  </text>
+
+  <line x1="585" y1="115" x2="655" y2="115" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="670" y="80" width="210" height="70" fill="#d2e3eb" stroke="#1b4168" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <rect x="685" y="95" width="28" height="35" fill="#1b4168" rx="4"/>
+  <text x="690" y="118" font-size="14" font-weight="bold" fill="#ffffff">&lt;/&gt;</text>
+  <text x="693" y="127" font-size="8" fill="#ffffff">.py</text>
+  <text x="725" y="112" font-size="16" font-weight="bold" fill="#111111">
+    <tspan x="725" dy="-5">Python Code</tspan>
+    <tspan x="725" dy="20">Generation</tspan>
+  </text>
+
+  <line x1="880" y1="115" x2="945" y2="115" stroke="#b04f4a" stroke-width="5" marker-end="url(#arrowRed)"/>
+
+  <rect x="960" y="80" width="140" height="70" fill="#f0d5d2" stroke="#a13f39" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <rect x="975" y="100" width="25" height="25" fill="none" stroke="#a13f39" stroke-width="2"/>
+  <path d="M 978 112 L 983 118 L 995 105" fill="none" stroke="#a13f39" stroke-width="2"/>
+  <text x="1010" y="122" font-size="18" font-weight="bold" fill="#111111">Validator</text>
+
+  <path d="M 980 150 L 980 185 L 455 185 L 455 160" fill="none" stroke="#b04f4a" stroke-width="5" marker-end="url(#arrowRed)"/>
+  <text x="470" y="177" font-size="16" font-weight="bold" fill="#b04f4a">Error Feedback &amp; Self-Correction</text>
+
+  <line x1="775" y1="150" x2="775" y2="280" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+  <text x="790" y="240" font-size="16" font-weight="bold" fill="#1b4168">Dynamic Code Injection</text>
+
+
+  <rect x="20" y="225" width="1160" height="300" fill="none" stroke="#2b3b4e" stroke-width="2" stroke-dasharray="8,5" rx="10"/>
+  <text x="40" y="260" font-size="22" font-weight="bold" font-style="italic" fill="#1a1a1a">ALNS Framework Execution</text>
+  <text x="40" y="285" font-size="18" font-style="italic" fill="#333333">(Algorithm Runtime Layer)</text>
+
+  <rect x="280" y="275" width="880" height="235" fill="#e9ecef" stroke="#caced1" stroke-width="1.5" rx="10"/>
+  <rect x="280" y="275" width="880" height="35" fill="#cecece" rx="10" />
+  <rect x="280" y="295" width="880" height="15" fill="#cecece"/>
+  <text x="590" y="300" font-size="18" font-weight="bold" fill="#222">Modular Interface Slots</text>
+
+  <rect x="40" y="350" width="180" height="100" fill="#d2e3eb" stroke="#1b4168" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <circle cx="130" cy="380" r="16" fill="none" stroke="#1b4168" stroke-width="3"/>
+  <line x1="130" y1="364" x2="130" y2="396" stroke="#1b4168" stroke-width="2"/>
+  <line x1="114" y1="380" x2="146" y2="380" stroke="#1b4168" stroke-width="2"/>
+  <line x1="119" y1="369" x2="141" y2="391" stroke="#1b4168" stroke-width="2"/>
+  <line x1="119" y1="391" x2="141" y2="369" stroke="#1b4168" stroke-width="2"/>
+  <text x="130" y="415" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">
+    <tspan x="130" dy="0">Roulette Wheel</tspan>
+    <tspan x="130" dy="20">Selection</tspan>
+  </text>
+
+  <line x1="220" y1="400" x2="295" y2="400" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="310" y="325" width="340" height="170" fill="none" stroke="#1b4168" stroke-width="2" rx="8"/>
+  <text x="350" y="405" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">
+    <tspan x="360" dy="0">Operator</tspan>
+    <tspan x="360" dy="22">Execution</tspan>
+  </text>
+  <path d="M 420 340 Q 430 400 420 480" fill="none" stroke="#1b4168" stroke-width="1.5"/> <g fill="#1b4168" stroke="#122a45" stroke-width="1">
+    <rect x="440" y="335" width="180" height="22" rx="4"/>
+    <rect x="440" y="365" width="180" height="22" rx="4"/>
+    <rect x="440" y="395" width="180" height="22" rx="4"/>
+    <rect x="440" y="425" width="180" height="22" rx="4"/>
+    <rect x="440" y="455" width="180" height="22" rx="4"/>
+  </g>
+  <g fill="#ffffff" font-size="14" font-family="monospace" text-anchor="middle">
+    <text x="530" y="350">random_removal</text>
+    <text x="530" y="380">route_removal</text>
+    <text x="530" y="410">string_removal</text>
+    <text x="530" y="440">greedy_insert</text>
+    <text x="530" y="470">regret_insert</text>
+  </g>
+
+  <line x1="650" y1="400" x2="710" y2="400" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="725" y="350" width="175" height="100" fill="#d2e3eb" stroke="#1b4168" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <rect x="790" y="365" width="10" height="20" fill="none" stroke="#1b4168" stroke-width="2" rx="5"/>
+  <circle cx="795" cy="388" r="7" fill="none" stroke="#1b4168" stroke-width="2"/>
+  <line x1="795" y1="375" x2="795" y2="385" stroke="#b04f4a" stroke-width="3"/>
+  <path d="M 810 380 Q 820 360 830 360" fill="none" stroke="#1b4168" stroke-width="2"/>
+  <text x="812" y="415" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">
+    <tspan x="812" dy="0">Simulated</tspan>
+    <tspan x="812" dy="20">Annealing</tspan>
+    <tspan x="812" dy="20">Acceptance</tspan>
+  </text>
+
+  <line x1="900" y1="400" x2="945" y2="400" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="960" y="350" width="180" height="100" fill="#d2e3eb" stroke="#1b4168" stroke-width="1.5" rx="8" filter="url(#shadow)"/>
+  <path d="M 1050 365 L 1050 395" stroke="#1b4168" stroke-width="2"/>
+  <path d="M 1030 375 L 1070 375" stroke="#1b4168" stroke-width="2"/>
+  <path d="M 1030 375 L 1025 390 L 1035 390 Z" fill="none" stroke="#1b4168" stroke-width="1.5"/>
+  <path d="M 1070 375 L 1065 390 L 1075 390 Z" fill="none" stroke="#1b4168" stroke-width="1.5"/>
+  <line x1="1040" y1="395" x2="1060" y2="395" stroke="#1b4168" stroke-width="2"/>
+  <text x="1050" y="420" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">
+    <tspan x="1050" dy="0">Adaptive</tspan>
+    <tspan x="1050" dy="20">Weight Update</tspan>
+  </text>
+
+  <path d="M 1050 450 L 1050 495 L 130 495 L 130 460" fill="none" stroke="#1b4168" stroke-width="5" marker-end="url(#arrowBlue)"/>
+
+  <path d="M 1140 400 L 1180 400 L 1180 115 L 1115 115" fill="none" stroke="#b04f4a" stroke-width="7" marker-end="url(#arrowRed)"/>
+
+
+  <rect x="20" y="540" width="1160" height="190" fill="none" stroke="#2b3b4e" stroke-width="2" stroke-dasharray="8,5" rx="10"/>
+  
+  <text x="40" y="615" font-size="20" font-weight="bold" fill="#111111">
+    <tspan x="40" dy="0">Multi-Objective</tspan>
+    <tspan x="40" dy="25">Cost Evaluation</tspan>
+  </text>
+  <text x="40" y="665" font-size="18" font-style="italic" fill="#333333">(Evaluation Layer)</text>
+
+  <rect x="240" y="555" width="450" height="160" fill="#f4f6f8" stroke="#caced1" stroke-width="1.5" rx="8"/>
+  <text x="465" y="580" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">Mathematical Formulas for Cost</text>
+  
+  <text x="260" y="620" font-size="16" font-family="'Cambria Math', serif, italic" fill="#111111">
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">total</tspan> 
+    <tspan font-size="16" dy="-5"> = </tspan>
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">fixed</tspan>
+    <tspan font-size="16" dy="-5"> + </tspan>
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">dist</tspan>
+    <tspan font-size="16" dy="-5"> + </tspan>
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">freshness</tspan>
+    <tspan font-size="16" dy="-5"> + </tspan>
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">penalty</tspan>
+  </text>
+  
+  <text x="280" y="660" font-size="16" font-family="'Cambria Math', serif, italic" fill="#111111">
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">freshness</tspan>
+    <tspan font-size="16" dy="-5"> = Σ (Decay Function)</tspan>
+  </text>
+
+  <text x="280" y="700" font-size="16" font-family="'Cambria Math', serif, italic" fill="#111111">
+    <tspan font-style="italic">C</tspan><tspan font-size="12" dy="5">penalty</tspan>
+    <tspan font-size="16" dy="-5"> = Σ (Time Window Violation)</tspan>
+  </text>
+
+  <rect x="710" y="555" width="450" height="160" fill="#f8f9fa" stroke="none"/>
+  <text x="935" y="580" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">Performance &amp; Solution Visualization</text>
+
+  <g transform="translate(730, 600)">
+    <line x1="20" y1="40" x2="60" y2="10" stroke="#1b4168" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <line x1="60" y1="10" x2="100" y2="15" stroke="#1b4168" stroke-width="2"/>
+    <line x1="100" y1="15" x2="140" y2="50" stroke="#1b4168" stroke-width="2"/>
+    <line x1="20" y1="40" x2="50" y2="80" stroke="#1b4168" stroke-width="2"/>
+    <line x1="50" y1="80" x2="90" y2="90" stroke="#1b4168" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <line x1="90" y1="90" x2="130" y2="85" stroke="#1b4168" stroke-width="2"/>
+    <line x1="100" y1="15" x2="90" y2="90" stroke="#84a6a1" stroke-width="2"/>
+    <line x1="60" y1="10" x2="90" y2="50" stroke="#84a6a1" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <line x1="90" y1="50" x2="140" y2="50" stroke="#84a6a1" stroke-width="2"/>
+    <line x1="90" y1="50" x2="130" y2="85" stroke="#1b4168" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <circle cx="20" cy="40" r="8" fill="#1b4168"/>
+    <circle cx="60" cy="10" r="6" fill="#84a6a1"/>
+    <circle cx="100" cy="15" r="6" fill="#d2e3eb" stroke="#1b4168" stroke-width="1"/>
+    <circle cx="50" cy="80" r="6" fill="#d2e3eb" stroke="#1b4168" stroke-width="1"/>
+    <circle cx="90" cy="90" r="6" fill="#84a6a1"/>
+    <circle cx="130" cy="85" r="6" fill="#84a6a1"/>
+    <circle cx="140" cy="50" r="6" fill="#d2e3eb" stroke="#1b4168" stroke-width="1"/>
+    <circle cx="90" cy="50" r="6" fill="#d2e3eb" stroke="#1b4168" stroke-width="1"/>
+  </g>
+
+  <g transform="translate(930, 600)">
+    <line x1="20" y1="10" x2="20" y2="90" stroke="#111111" stroke-width="2"/>
+    <line x1="20" y1="90" x2="150" y2="90" stroke="#111111" stroke-width="2" marker-end="url(#arrowBlue)"/>
+    <text x="-5" y="70" font-size="12" fill="#111111" transform="rotate(-90, 5, 70)">Total Cost</text>
+    <text x="85" y="110" font-size="12" fill="#111111" text-anchor="middle">Iterations</text>
+    
+    <path d="M 30 20 Q 50 80 130 80" fill="none" stroke="#b04f4a" stroke-width="3"/>
+    <path d="M 30 40 Q 60 70 140 30" fill="none" stroke="#1b4168" stroke-width="3"/>
+  </g>
+
+</svg>

@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-03-05T00:00:00.000Z" agent="Copilot" version="24.0.0" type="device">
+  <diagram id="research-framework" name="研究框架图">
+    <mxGraphModel dx="1422" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="960" pageHeight="1260" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===================== 标题行 ===================== -->
+        <mxCell id="2" value="研究&lt;br&gt;主线" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F5496;fontColor=#FFFFFF;fontSize=13;fontStyle=1;strokeColor=#1F3864;arcSize=25;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="15" y="22" width="62" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" style="edgeStyle=none;html=1;strokeColor=#2F5496;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="2" target="4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="基于大语言模型的生鲜物流配送路径优化研究" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;fontColor=#333333;fontSize=18;fontStyle=1;strokeColor=#333333;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="160" y="15" width="580" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== 研究基础 SECTION ===================== -->
+        <mxCell id="10" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#4472C4;fillColor=none;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="100" width="760" height="210" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="研究基础" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F0;strokeColor=#4472C4;fontSize=12;fontStyle=1;fontColor=#2F5496;arcSize=35;" vertex="1" parent="1">
+          <mxGeometry x="385" y="85" width="90" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="研究&lt;br&gt;基础" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F5496;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#1F3864;arcSize=25;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="15" y="168" width="62" height="44" as="geometry"/>
+        </mxCell>
+
+        <!-- 理论基础 -->
+        <mxCell id="13" value="理论基础" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2DCDB;strokeColor=#C0504D;fontStyle=1;fontSize=12;fontColor=#632523;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="120" width="225" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="生鲜冷链多维约束VRP问题&lt;br&gt;ALNS自适应大邻域搜索&lt;br&gt;LLM大模型代码推理生成" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C0504D;verticalAlign=middle;fontSize=11;align=center;spacingLeft=8;spacingRight=8;" vertex="1" parent="1">
+          <mxGeometry x="110" y="148" width="225" height="145" as="geometry"/>
+        </mxCell>
+
+        <!-- 研究方法 -->
+        <mxCell id="15" value="研究方法" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#D9E2F3;strokeColor=#4472C4;fontStyle=1;fontSize=12;fontColor=#2F5496;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="355" y="120" width="225" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="16" value="分层提示工程(Prompt)&lt;br&gt;Python子进程流式代码隔离&lt;br&gt;算子自动化统计与可视化" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4472C4;verticalAlign=middle;fontSize=11;align=center;spacingLeft=8;spacingRight=8;" vertex="1" parent="1">
+          <mxGeometry x="355" y="148" width="225" height="145" as="geometry"/>
+        </mxCell>
+
+        <!-- 项目背景 -->
+        <mxCell id="17" value="项目背景" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E2EFDA;strokeColor=#70AD47;fontStyle=1;fontSize=12;fontColor=#375623;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="600" y="120" width="225" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="18" value="启发式算子开发周期长&lt;br&gt;手工编码扩展可移植性差&lt;br&gt;OR-LLM-Agent插件式架构" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#70AD47;verticalAlign=middle;fontSize=11;align=center;spacingLeft=8;spacingRight=8;" vertex="1" parent="1">
+          <mxGeometry x="600" y="148" width="225" height="145" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== 过渡 1：研究基础 → 核心算法 ===================== -->
+        <mxCell id="20" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="10" target="21" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="21" value="核心架构与算法机制设计" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F0;strokeColor=#4472C4;fontSize=13;fontStyle=1;fontColor=#2F5496;arcSize=25;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="310" y="335" width="260" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="22" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="21" target="30" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== 核心算法 SECTION ===================== -->
+        <mxCell id="30" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#C0504D;fillColor=none;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="395" width="760" height="395" as="geometry"/>
+        </mxCell>
+        <mxCell id="31" value="核心&lt;br&gt;算法" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F5496;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#1F3864;arcSize=25;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="15" y="558" width="62" height="44" as="geometry"/>
+        </mxCell>
+
+        <!-- LLM 交互与算子生成层 -->
+        <mxCell id="32" value="LLM 交互与算子生成层 (Interaction Layer)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C0504D;strokeColor=#943634;fontStyle=1;fontSize=12;fontColor=#FFFFFF;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="410" width="720" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="33" value="分层提示词模板构建　多轮错误反馈调试　统一代码框架注入　缺失方法桩代码补全" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F9E4E4;strokeColor=#C0504D;verticalAlign=middle;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="110" y="438" width="720" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：LLM层 → ALNS层 -->
+        <mxCell id="34" style="edgeStyle=none;html=1;strokeColor=#888888;strokeWidth=1.5;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="470" y="468" as="sourcePoint"/>
+            <mxPoint x="470" y="485" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ALNS 框架执行层 容器 -->
+        <mxCell id="35" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBF0F0;strokeColor=#C0504D;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="110" y="485" width="720" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="36" value="ALNS 框架执行层 (Skeleton Layer)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8D0D0;strokeColor=#C0504D;fontStyle=1;fontSize=12;fontColor=#632523;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="485" width="720" height="26" as="geometry"/>
+        </mxCell>
+
+        <!-- 破坏阶段 (Destroy) -->
+        <mxCell id="37" value="破坏阶段 (Destroy)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2DCDB;strokeColor=#C0504D;fontStyle=1;fontSize=11;fontColor=#632523;" vertex="1" parent="1">
+          <mxGeometry x="125" y="525" width="155" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="38" value="random_removal&lt;br&gt;route_removal&lt;br&gt;string_removal" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C0504D;verticalAlign=middle;fontSize=11;align=center;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="125" y="550" width="155" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- 中间机制列 -->
+        <mxCell id="39" value="轮盘赌自适应权重选择" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6E0EC;strokeColor=#7030A0;fontSize=10;fontColor=#4A235A;arcSize=35;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="325" y="525" width="190" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="40" value="模拟退火(SA)接受准则&lt;br&gt;&lt;i&gt;P(accept) = exp(-Δ/T)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6E0EC;strokeColor=#7030A0;fontSize=10;fontColor=#4A235A;arcSize=35;" vertex="1" parent="1">
+          <mxGeometry x="325" y="570" width="190" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="41" value="权重动态更新与衰减" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6E0EC;strokeColor=#7030A0;fontSize=10;fontColor=#4A235A;arcSize=35;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="325" y="625" width="190" height="32" as="geometry"/>
+        </mxCell>
+        <!-- 中间竖向箭头 -->
+        <mxCell id="42" style="edgeStyle=none;html=1;strokeColor=#7030A0;strokeWidth=1.5;endArrow=block;endFill=1;" edge="1" source="39" target="40" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="43" style="edgeStyle=none;html=1;strokeColor=#7030A0;strokeWidth=1.5;endArrow=block;endFill=1;" edge="1" source="40" target="41" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 修复阶段 (Repair) -->
+        <mxCell id="44" value="修复阶段 (Repair)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2DCDB;strokeColor=#C0504D;fontStyle=1;fontSize=11;fontColor=#632523;" vertex="1" parent="1">
+          <mxGeometry x="560" y="525" width="155" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="45" value="greedy_insert&lt;br&gt;regret_insert" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C0504D;verticalAlign=middle;fontSize=11;align=center;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="560" y="550" width="155" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- 横向箭头：破坏 ↔ 中间 ↔ 修复 -->
+        <mxCell id="46" style="edgeStyle=none;html=1;strokeColor=#888888;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="38" target="40" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="47" style="edgeStyle=none;html=1;strokeColor=#888888;strokeWidth=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="40" target="45" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：ALNS层 → 成本模型 -->
+        <mxCell id="48" style="edgeStyle=none;html=1;strokeColor=#888888;strokeWidth=1.5;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="470" y="685" as="sourcePoint"/>
+            <mxPoint x="470" y="700" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 生鲜物流五维评估模型 (Cost Calculation Layer) -->
+        <mxCell id="49" value="生鲜物流五维评估模型 (Cost Calculation Layer)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#BF8F00;fontStyle=1;fontSize=12;fontColor=#7F6000;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="700" width="720" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="50" value="C11: 固定成本　C12: 距离成本　C13: 制冷成本　C2: 新鲜度衰减货损　C3: 时间窗惩罚" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BF8F00;verticalAlign=middle;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="110" y="728" width="720" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== 过渡 2：核心算法 → 提升策略 ===================== -->
+        <mxCell id="60" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="30" target="61" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="61" value="提升策略与实验验证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D6E4F0;strokeColor=#4472C4;fontSize=13;fontStyle=1;fontColor=#2F5496;arcSize=25;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="330" y="815" width="230" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="62" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="61" target="70" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== 提升策略 SECTION ===================== -->
+        <mxCell id="70" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#4472C4;fillColor=none;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="875" width="760" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="71" value="提升&lt;br&gt;策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2F5496;fontColor=#FFFFFF;fontSize=12;fontStyle=1;strokeColor=#1F3864;arcSize=25;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="15" y="975" width="62" height="44" as="geometry"/>
+        </mxCell>
+
+        <!-- 算法机制调优策略 -->
+        <mxCell id="72" value="算法机制调优策略" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#2F5496;strokeColor=#1F3864;fontStyle=1;fontSize=11;fontColor=#FFFFFF;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="895" width="215" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="73" value="• 自适应权重下限防饥饿&lt;br&gt;&lt;br&gt;• 动态三级破坏比例调节&lt;br&gt;&lt;br&gt;• SA温度系统重构延长探索&lt;br&gt;&lt;br&gt;• 迭代阈值动态比例化&lt;br&gt;&lt;br&gt;• 极限成本上限保护防崩溃" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2F5496;verticalAlign=middle;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="110" y="921" width="215" height="195" as="geometry"/>
+        </mxCell>
+
+        <!-- 算法测试执行 -->
+        <mxCell id="74" value="算法测试执行" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7030A0;strokeColor=#5B2C8E;fontStyle=1;fontSize=11;fontColor=#FFFFFF;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="350" y="895" width="170" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="75" value="Solomon C105&lt;br&gt;基准测试集&lt;br&gt;&lt;br&gt;N=1000次迭代&lt;br&gt;&lt;br&gt;最优成本突破" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7030A0;verticalAlign=middle;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="350" y="921" width="170" height="195" as="geometry"/>
+        </mxCell>
+
+        <!-- 结果可视化输出 -->
+        <mxCell id="76" value="结果可视化输出" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#70AD47;strokeColor=#548235;fontStyle=1;fontSize=11;fontColor=#FFFFFF;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="545" y="895" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="77" value="• (a) 收敛曲线趋势平滑分离&lt;br&gt;&lt;br&gt;• (b) 多车辆路线方案着色图&lt;br&gt;&lt;br&gt;• (c) 算子使用频次与成功率&lt;br&gt;&lt;br&gt;全局最优解与局部最优诊断&lt;br&gt;&lt;br&gt;学术高保真矢量图表生成" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#70AD47;verticalAlign=middle;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="545" y="921" width="280" height="195" as="geometry"/>
+        </mxCell>
+
+        <!-- 提升策略内部箭头：测试执行 → 调优策略 -->
+        <mxCell id="78" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="75" target="73" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- 提升策略内部箭头：测试执行 → 可视化输出 -->
+        <mxCell id="79" style="edgeStyle=none;html=1;strokeColor=#4472C4;strokeWidth=1.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="75" target="77" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

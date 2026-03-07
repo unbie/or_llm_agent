@@ -379,7 +379,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve(max_iters=1000)\n"
+            "        best_sol, best_cost = solver.solve(max_iters=800)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -682,45 +682,28 @@ def visualize_results(dataset, solution, best_cost, output):
         
         x_pos = list(range(len(op_names)))
         
-        # 按算子类型着色：破坏=蓝色系，修复=红色系
+        # 按算子类型着色：破坏=蓝色，修复=红色
         bar_colors = ['#4393C3' if 'insert' not in n else '#B2182B' for n in op_names]
         bars = ax3.bar(x_pos, uses, color=bar_colors, alpha=0.8, edgecolor='black', linewidth=0.6, width=0.55)
         ax3.set_ylabel('Usage Count', color='#333333')
         
-        # 使用次数标注（防重叠：低柱子标注放在柱顶上方）
-        max_use = max(uses) if uses else 1
+        # 使用次数标注
         for bar, use_count in zip(bars, uses):
-            y_pos = bar.get_height()
-            # 低于最大值15%的柱子，标注放在柱顶上方并加偏移
-            if use_count < max_use * 0.15:
-                ax3.text(bar.get_x() + bar.get_width() / 2., y_pos + max_use * 0.02,
-                        f'{use_count}', ha='center', va='bottom', fontsize=8, fontweight='bold')
-            else:
-                ax3.text(bar.get_x() + bar.get_width() / 2., y_pos,
-                        f'{use_count}', ha='center', va='bottom', fontsize=8)
+            ax3.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                    f'{use_count}', ha='center', va='bottom', fontsize=8)
         
         # 右 y 轴：成功率（折线图）
         ax3_twin = ax3.twinx()
-        ax3_twin.plot(x_pos, rates, 'o-', color='#E66100', linewidth=1.4, markersize=5, zorder=5)
+        ax3_twin.plot(x_pos, rates, 'o-', color='#E66100', linewidth=1.4, markersize=5, zorder=5, label='Success rate')
         ax3_twin.set_ylabel('Success Rate (%)', color='#E66100')
-        max_rate = max(rates) if max(rates) > 0 else 10
-        ax3_twin.set_ylim(0, max_rate * 1.5)
+        ax3_twin.set_ylim(0, max(rates) * 1.5 if max(rates) > 0 else 10)
         ax3_twin.tick_params(axis='y', colors='#E66100', direction='in')
         ax3_twin.spines['right'].set_color('#E66100')
         
-        # 成功率数值标注（防重叠：根据柱高动态调整偏移方向）
+        # 成功率数值标注
         for xi, rate in zip(x_pos, rates):
-            # 如果成功率点与柱顶太近，标注偏移到下方
-            bar_top_ratio = uses[xi] / max_use if max_use > 0 else 0
-            rate_ratio = rate / max_rate if max_rate > 0 else 0
-            if abs(bar_top_ratio - rate_ratio / 1.5) < 0.15:
-                xytext = (0, -15)
-                va = 'top'
-            else:
-                xytext = (0, 8)
-                va = 'bottom'
             ax3_twin.annotate(f'{rate:.1f}%', (xi, rate), textcoords='offset points',
-                            xytext=xytext, ha='center', va=va, fontsize=7.5, color='#E66100')
+                            xytext=(0, 8), ha='center', fontsize=7.5, color='#E66100')
         
         ax3.set_xticks(x_pos)
         ax3.set_xticklabels(short_names, fontsize=7.5)
@@ -728,7 +711,7 @@ def visualize_results(dataset, solution, best_cost, output):
         ax3.grid(True, axis='y')
         ax3.tick_params(direction='in', top=True)
         
-        # 学术图例
+        # 图例
         from matplotlib.patches import Patch
         from matplotlib.lines import Line2D
         legend_elements = [

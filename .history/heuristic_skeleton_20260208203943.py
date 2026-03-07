@@ -610,11 +610,6 @@ class HeuristicSolver:
             self.i_weights[self.last_i_idx] * (1 - self.rho) + score * self.rho
         )
         
-        # 权重下限保护：防止算子被完全饿死，保证搜索多样性
-        min_weight = 0.1
-        self.d_weights = [max(w, min_weight) for w in self.d_weights]
-        self.i_weights = [max(w, min_weight) for w in self.i_weights]
-        
         # 更新算子统计
         self.op_stats['destroy'][self.last_d_idx]['uses'] += 1
         self.op_stats['destroy'][self.last_d_idx]['score'] += score
@@ -1132,21 +1127,6 @@ class HeuristicSolver:
         print(f"【最终结果】改进次数: {improvement_count}")
         print(f"【最终结果】最后改进: 第 {last_improve_iter} 次迭代")
         print(f"{'='*60}\n")
-        
-        # 打印算子统计（供可视化提取）
-        destroy_names = ['random_removal', 'route_removal', 'string_removal']
-        insert_names = ['greedy_insert', 'regret_insert']
-        print("【算子统计】")
-        for idx, name in enumerate(destroy_names):
-            if idx in self.op_stats['destroy']:
-                s = self.op_stats['destroy'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
-        for idx, name in enumerate(insert_names):
-            if idx in self.op_stats['insert']:
-                s = self.op_stats['insert'][idx]
-                rate = (s['successes'] / s['uses'] * 100) if s['uses'] > 0 else 0.0
-                print(f"  {name}: {s['uses']} uses, {s['successes']} success ({rate:.1f}%)")
         
         return best_solution, best_cost
     

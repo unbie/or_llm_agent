@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #FFFFFF; font-family: Arial, 'Microsoft YaHei', sans-serif;
+  display: flex;
+}
+.sidebar { width: 8pt; background: #B165FB; }
+.content { flex: 1; padding: 40pt 50pt; }
+h1 { font-size: 28pt; color: #181B24; margin-bottom: 20pt; font-weight: bold; }
+h2 { font-size: 18pt; color: #40695B; margin: 15pt 0 10pt 0; font-weight: bold; }
+ul {
+  margin: 0; padding-left: 25pt;
+}
+li {
+  font-size: 13pt; line-height: 1.8; color: #333333; margin-bottom: 6pt;
+}
+.conclusion-box {
+  background: #F0F4FF; padding: 15pt; border-left: 4pt solid #B165FB; margin: 10pt 0;
+}
+.conclusion-number {
+  display: inline-block; width: 25pt; height: 25pt; background: #B165FB;
+  color: #FFFFFF; text-align: center; line-height: 25pt; border-radius: 50%;
+  font-weight: bold; margin-right: 10pt;
+}
+.conclusion-text {
+  font-size: 13pt; color: #333333; line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h1>07 主要结论 Main Conclusions</h1>
+  
+  <div class="conclusion-box">
+    <p class="conclusion-text">
+      <span class="conclusion-number">1</span>
+      <strong>LLM 可有效生成 ALNS 算子：</strong>DeepSeek R1 在提示工程引导下，能够生成功能正确的破坏和修复算子代码，在 Solomon C105 基准上取得 42,023.80 的目标函数值
+    </p>
+  </div>
+  
+  <div class="conclusion-box">
+    <p class="conclusion-text">
+      <span class="conclusion-number">2</span>
+      <strong>插件式架构保证鲁棒性：</strong>Skeleton + Plugin 的解耦设计，配合 Fallback 机制，即使 LLM 生成的部分算子存在缺陷，系统仍能正常运行
+    </p>
+  </div>
+  
+  <div class="conclusion-box">
+    <p class="conclusion-text">
+      <span class="conclusion-number">3</span>
+      <strong>自适应机制的重要性：</strong>权重下限保护、自适应破坏比例、重启再加热等机制显著影响算法性能，防止过早收敛和算子饥饿
+    </p>
+  </div>
+  
+  <div class="conclusion-box">
+    <p class="conclusion-text">
+      <span class="conclusion-number">4</span>
+      <strong>单次运行即可：</strong>内置的三重随机化机制使单次 solve() 已具备足够的搜索能力，多次运行的边际收益极低
+    </p>
+  </div>
+</div>
+</body>
+</html>

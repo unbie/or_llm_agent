@@ -379,7 +379,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve(max_iters=1000)\n"
+            "        best_sol, best_cost = solver.solve(max_iters=800)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"
@@ -663,84 +663,53 @@ def visualize_results(dataset, solution, best_cost, output):
     ax2.legend(loc='upper right', frameon=True, edgecolor='gray', fancybox=False, framealpha=0.9, markerscale=0.8)
     
     # ═══════════════════════════════════════════════════
-    # (c) Operator Performance
+    # (c) Multi-run Cost Comparison
     # ═══════════════════════════════════════════════════
     ax3 = axes[2]
     
-    op_stats = extract_operator_stats(output)
+    multi_run_pattern = r'各次成本: \[(.*?)\]'
+    multi_run_match = re.search(multi_run_pattern, output)
     
-    if op_stats:
-        op_names = list(op_stats.keys())
-        uses = [op_stats[n]['uses'] for n in op_names]
-        rates = [op_stats[n]['rate'] for n in op_names]
+    if multi_run_match:
+        costs_str = multi_run_match.group(1)
+        costs = [float(c.strip().strip("'\"")) for c in costs_str.split(',')]
         
-        # 简化算子名称用于显示
-        short_names = []
-        for name in op_names:
-            short = name.replace('_removal', '\nremoval').replace('_insert', '\ninsert')
-            short_names.append(short)
+        runs = list(range(1, len(costs) + 1))
+        min_cost_val = min(costs)
+        avg_cost_val = sum(costs) / len(costs)
         
-        x_pos = list(range(len(op_names)))
+        # 学术柱状图：灰色 + 最优高亮
+        bar_colors = ['#B2182B' if c == min_cost_val else '#4393C3' for c in costs]
+        bars = ax3.bar(runs, costs, color=bar_colors, alpha=0.85, edgecolor='black', linewidth=0.6, width=0.6)
         
-        # 按算子类型着色：破坏=蓝色系，修复=红色系
-        bar_colors = ['#4393C3' if 'insert' not in n else '#B2182B' for n in op_names]
-        bars = ax3.bar(x_pos, uses, color=bar_colors, alpha=0.8, edgecolor='black', linewidth=0.6, width=0.55)
-        ax3.set_ylabel('Usage Count', color='#333333')
+        # 参考线
+        ax3.axhline(y=min_cost_val, color='#B2182B', linestyle='--', linewidth=0.8, alpha=0.7,
+                    label=f'Best = {min_cost_val:.2f}')
+        ax3.axhline(y=avg_cost_val, color='#2166AC', linestyle=':', linewidth=0.8, alpha=0.7,
+                    label=f'Mean = {avg_cost_val:.2f}')
         
-        # 使用次数标注（防重叠：低柱子标注放在柱顶上方）
-        max_use = max(uses) if uses else 1
-        for bar, use_count in zip(bars, uses):
-            y_pos = bar.get_height()
-            # 低于最大值15%的柱子，标注放在柱顶上方并加偏移
-            if use_count < max_use * 0.15:
-                ax3.text(bar.get_x() + bar.get_width() / 2., y_pos + max_use * 0.02,
-                        f'{use_count}', ha='center', va='bottom', fontsize=8, fontweight='bold')
-            else:
-                ax3.text(bar.get_x() + bar.get_width() / 2., y_pos,
-                        f'{use_count}', ha='center', va='bottom', fontsize=8)
+        # 数值标注
+        for bar, cost in zip(bars, costs):
+            ax3.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                    f'{cost:.1f}', ha='center', va='bottom', fontsize=8)
         
-        # 右 y 轴：成功率（折线图）
-        ax3_twin = ax3.twinx()
-        ax3_twin.plot(x_pos, rates, 'o-', color='#E66100', linewidth=1.4, markersize=5, zorder=5)
-        ax3_twin.set_ylabel('Success Rate (%)', color='#E66100')
-        max_rate = max(rates) if max(rates) > 0 else 10
-        ax3_twin.set_ylim(0, max_rate * 1.5)
-        ax3_twin.tick_params(axis='y', colors='#E66100', direction='in')
-        ax3_twin.spines['right'].set_color('#E66100')
+        # y 轴截断显示（避免从 0 开始导致差异不明显）
+        cost_range = max(costs) - min(costs)
+        if cost_range > 0:
+            y_bottom = min(costs) - cost_range * 1.5
+            y_top = max(costs) + cost_range * 1.0
+            ax3.set_ylim(y_bottom, y_top)
         
-        # 成功率数值标注（防重叠：根据柱高动态调整偏移方向）
-        for xi, rate in zip(x_pos, rates):
-            # 如果成功率点与柱顶太近，标注偏移到下方
-            bar_top_ratio = uses[xi] / max_use if max_use > 0 else 0
-            rate_ratio = rate / max_rate if max_rate > 0 else 0
-            if abs(bar_top_ratio - rate_ratio / 1.5) < 0.15:
-                xytext = (0, -15)
-                va = 'top'
-            else:
-                xytext = (0, 8)
-                va = 'bottom'
-            ax3_twin.annotate(f'{rate:.1f}%', (xi, rate), textcoords='offset points',
-                            xytext=xytext, ha='center', va=va, fontsize=7.5, color='#E66100')
-        
-        ax3.set_xticks(x_pos)
-        ax3.set_xticklabels(short_names, fontsize=7.5)
-        ax3.set_title('(c) Operator Performance', fontweight='bold')
+        ax3.set_xlabel('Run')
+        ax3.set_ylabel('Objective Value')
+        ax3.set_xticks(runs)
+        ax3.set_title('(c) Multi-run Comparison', fontweight='bold')
+        ax3.legend(loc='upper right', frameon=True, edgecolor='gray', fancybox=False, framealpha=0.9)
         ax3.grid(True, axis='y')
-        ax3.tick_params(direction='in', top=True)
-        
-        # 学术图例
-        from matplotlib.patches import Patch
-        from matplotlib.lines import Line2D
-        legend_elements = [
-            Patch(facecolor='#4393C3', edgecolor='black', label='Destroy ops'),
-            Patch(facecolor='#B2182B', edgecolor='black', label='Repair ops'),
-            Line2D([0], [0], color='#E66100', marker='o', label='Success rate'),
-        ]
-        ax3.legend(handles=legend_elements, loc='upper left', frameon=True, edgecolor='gray',
-                  fancybox=False, framealpha=0.9, fontsize=7.5)
+        ax3.tick_params(direction='in', top=True, right=True)
     else:
-        ax3.text(0.5, 0.5, 'No operator data', ha='center', va='center', transform=ax3.transAxes, fontsize=11)
-        ax3.set_title('(c) Operator Performance', fontweight='bold')
+        ax3.text(0.5, 0.5, 'No multi-run data', ha='center', va='center', transform=ax3.transAxes, fontsize=11)
+        ax3.set_title('(c) Multi-run Comparison', fontweight='bold')
     
     plt.tight_layout(w_pad=2.5)
     

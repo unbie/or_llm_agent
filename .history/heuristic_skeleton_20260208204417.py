@@ -610,11 +610,6 @@ class HeuristicSolver:
             self.i_weights[self.last_i_idx] * (1 - self.rho) + score * self.rho
         )
         
-        # 权重下限保护：防止算子被完全饿死，保证搜索多样性
-        min_weight = 0.1
-        self.d_weights = [max(w, min_weight) for w in self.d_weights]
-        self.i_weights = [max(w, min_weight) for w in self.i_weights]
-        
         # 更新算子统计
         self.op_stats['destroy'][self.last_d_idx]['uses'] += 1
         self.op_stats['destroy'][self.last_d_idx]['score'] += score

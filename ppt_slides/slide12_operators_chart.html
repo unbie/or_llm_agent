@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #FFFFFF; font-family: Arial, 'Microsoft YaHei', sans-serif;
+  display: flex;
+}
+.sidebar { width: 8pt; background: #B165FB; }
+.content { flex: 1; padding: 35pt 50pt; }
+h1 { font-size: 28pt; color: #181B24; margin-bottom: 15pt; font-weight: bold; }
+h2 { font-size: 18pt; color: #40695B; margin: 15pt 0 10pt 0; font-weight: bold; }
+.two-column {
+  display: flex; gap: 25pt; margin-top: 10pt;
+}
+.column {
+  flex: 1;
+}
+.chart-placeholder {
+  width: 100%; height: 250pt; background: #F0F4FF;
+  border: 2pt dashed #B165FB; border-radius: 8pt;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14pt; color: #666666; text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="sidebar"></div>
+<div class="content">
+  <h1>算子性能分析 Operator Performance</h1>
+  
+  <div class="two-column">
+    <div class="column">
+      <h2>破坏算子 Destroy Operators</h2>
+      <div id="destroy-chart" class="chart-placeholder placeholder">
+        <p>破坏算子使用次数与成功率<br>Destroy Operators Usage \u0026 Success Rate</p>
+      </div>
+    </div>
+    
+    <div class="column">
+      <h2>修复算子 Repair Operators</h2>
+      <div id="repair-chart" class="chart-placeholder placeholder">
+        <p>修复算子使用次数与成功率<br>Repair Operators Usage \u0026 Success Rate</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
