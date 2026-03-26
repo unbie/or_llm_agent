@@ -109,7 +109,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 【算子实现】：
 
 ═════════════════════════════════════════════════════════════
-【1. random_removal】- 随机破坏算子
+【1. random_removal】- 随机破坏算子（成功率2.1%，唯一有效的破坏算子）
 ═════════════════════════════════════════════════════════════
 
 **功能**：随机移除ratio比例的客户节点
@@ -537,7 +537,7 @@ class HeuristicPlugin:
 4. route_after_nodes = [self.solver.id_to_customer[n] for n in route_after]
 5. cost_after = self.solver.calculator.calculate_route_cost(route_after_nodes, self.dist_matrix)['variable_cost']
 6. cost_inc = cost_after - cost_before
- 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
+✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【算子效果对比】：
 

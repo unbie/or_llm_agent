@@ -5,11 +5,11 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 ║                                                                             ║
 ║  在 greedy_insert 和 regret_insert 中，严禁使用简化的距离计算！              ║
 ║                                                                             ║
-║   错误示例（禁止）:                                                         ║
+║  ❌ 错误示例（禁止）:                                                         ║
 ║     cost_inc = self.dist_matrix[i][node] + self.dist_matrix[node][j] -     ║
 ║                self.dist_matrix[i][j]                                       ║
 ║                                                                             ║
-║   正确示例（必须）:                                                         ║
+║  ✅ 正确示例（必须）:                                                         ║
 ║     route_before = [self.solver.id_to_customer[n] for n in route]          ║
 ║     cost_before = self.solver.calculator.calculate_route_cost(             ║
 ║         route_before, self.dist_matrix)['variable_cost']                   ║
@@ -24,7 +24,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 你是一个熟悉 ALNS 算法的 Python 工程师，请实现生鲜物流 VRP 问题的启发式算子。
 
 ╔══════════════════════════════════════════════════════════════╗
-║    严格要求：必须实现且只实现以下5个方法，缺一不可！       ║
+║  ⚠️  严格要求：必须实现且只实现以下5个方法，缺一不可！       ║
 ║                                                              ║
 ║  框架代码会调用所有5个方法，缺少任何一个都会导致 AttributeError ║
 ║                                                              ║
@@ -37,7 +37,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 ║    4. greedy_insert   - 贪心修复                             ║
 ║    5. regret_insert   - 后悔修复                             ║
 ║                                                              ║
-║   只实现以上5个方法，不多不少，不要增加其他方法名          ║
+║  ✅ 只实现以上5个方法，不多不少，不要增加其他方法名          ║
 ╚══════════════════════════════════════════════════════════════╝
 
 【关键要求 - 必须使用完整成本计算】：
@@ -72,11 +72,11 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 【成本计算方式】：
    **严格要求：必须使用完整成本计算**（通过 self.solver.calculator 调用）
    
-    禁止使用简化的距离增量计算：
+   ❌ 禁止使用简化的距离增量计算：
       cost_inc = dist(prev, node) + dist(node, next) - dist(prev, next)  # 错误！
       new_route_cost = dist(0, node) * 2  # 错误！
    
-    必须使用完整成本计算：
+   ✅ 必须使用完整成本计算：
    
    # 步骤1：计算插入前路径的完整成本
    route_before = [self.solver.id_to_customer[n] for n in route]
@@ -100,7 +100,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
    new_route = [0, node, 0]
    route_nodes = [self.solver.id_to_customer[n] for n in new_route]
    new_route_cost = self.solver.calculator.calculate_route_cost(route_nodes, self.dist_matrix)['variable_cost']
-   new_route_cost += self.solver.calculator.f  #  必须加上固定成本C11
+   new_route_cost += self.solver.calculator.f  # ⚠️ 必须加上固定成本C11
 
 【必须导入】：
    import random
@@ -109,7 +109,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 【算子实现】：
 
 ═════════════════════════════════════════════════════════════
-【1. random_removal】- 随机破坏算子
+【1. random_removal】- 随机破坏算子（成功率2.1%，唯一有效的破坏算子）
 ═════════════════════════════════════════════════════════════
 
 **功能**：随机移除ratio比例的客户节点
@@ -296,20 +296,20 @@ def greedy_insert(self, solution, removed_nodes):
         best_position = None
         
         # 尝试插入到现有路径
-        #  关键：使用完整成本计算，不要用 dist(i,node)+dist(node,j)-dist(i,j)
+        # ⚠️ 关键：使用完整成本计算，不要用 dist(i,node)+dist(node,j)-dist(i,j)
         for route_idx, route in enumerate(new_solution):
             route_demand = sum(self.customer_lookup[n]['demand'] for n in route if n != 0)
             if route_demand + node_demand > self.capacity:
                 continue
             
-            #  必须：计算插入前的完整路径成本（包括C12+C13+C2+C3）
+            # ✅ 必须：计算插入前的完整路径成本（包括C12+C13+C2+C3）
             route_before = [self.solver.id_to_customer[n] for n in route]
             cost_before = self.solver.calculator.calculate_route_cost(
                 route_before, self.dist_matrix
             )['variable_cost']
             
             for pos in range(1, len(route)):
-                #  必须：计算插入后的完整路径成本
+                # ✅ 必须：计算插入后的完整路径成本
                 route_after = route[:pos] + [node] + route[pos:]
                 route_after_nodes = [self.solver.id_to_customer[n] for n in route_after]
                 cost_after = self.solver.calculator.calculate_route_cost(
@@ -324,7 +324,7 @@ def greedy_insert(self, solution, removed_nodes):
                     best_route_idx = route_idx
                     best_position = pos
         
-        # 必须：考虑创建新路径时也使用完整成本（包括固定成本C11）
+        # ✅ 必须：考虑创建新路径时也使用完整成本（包括固定成本C11）
         new_route = [0, node, 0]
         route_nodes_new = [self.solver.id_to_customer[n] for n in new_route]
         new_route_cost = self.solver.calculator.calculate_route_cost(
@@ -513,22 +513,22 @@ class HeuristicPlugin:
 ```
 
 【最后检查清单】：
- 是否恰好实现了以下5个方法：random_removal, route_removal, string_removal, greedy_insert, regret_insert
- 是否只有这5个方法，没有多余的方法
- 所有removal算子是否有 `n = min(n, total_customers)` 防止越界
- random_removal 是否降序排序 `reverse=True`
- route_removal 是否降序删除路径 `routes_to_remove.sort(reverse=True)`
- string_removal 是否删除空路径 `if len(route) > 2`
- greedy_insert 的 best_cost_increase 是否初始化为 `float('inf')`
- greedy_insert 是否用 `<=` 比较（不是 `<`）
- regret_insert 是否处理空列表 `if not removed_nodes`
- regret_insert 的后悔值计算是否基于每条路径的最佳位置（性能优化）
- 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
+✅ 是否恰好实现了以下5个方法：random_removal, route_removal, string_removal, greedy_insert, regret_insert
+✅ 是否只有这5个方法，没有多余的方法
+✅ 所有removal算子是否有 `n = min(n, total_customers)` 防止越界
+✅ random_removal 是否降序排序 `reverse=True`
+✅ route_removal 是否降序删除路径 `routes_to_remove.sort(reverse=True)`
+✅ string_removal 是否删除空路径 `if len(route) > 2`
+✅ greedy_insert 的 best_cost_increase 是否初始化为 `float('inf')`
+✅ greedy_insert 是否用 `<=` 比较（不是 `<`）
+✅ regret_insert 是否处理空列表 `if not removed_nodes`
+✅ regret_insert 的后悔值计算是否基于每条路径的最佳位置（性能优化）
+✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【 最关键检查 - 成本计算】：
- 是否使用了禁止的简化距离计算：dist_matrix[i][node] + dist_matrix[node][j] - dist_matrix[i][j]
- 是否使用了必需的完整成本计算：self.solver.calculator.calculate_route_cost()
- 新路径是否加上了固定成本：new_route_cost += self.solver.calculator.f
+❌ 是否使用了禁止的简化距离计算：dist_matrix[i][node] + dist_matrix[node][j] - dist_matrix[i][j]
+✅ 是否使用了必需的完整成本计算：self.solver.calculator.calculate_route_cost()
+✅ 新路径是否加上了固定成本：new_route_cost += self.solver.calculator.f
 
 【代码必须包含的关键语句】：
 1. route_before = [self.solver.id_to_customer[n] for n in route]
@@ -537,7 +537,7 @@ class HeuristicPlugin:
 4. route_after_nodes = [self.solver.id_to_customer[n] for n in route_after]
 5. cost_after = self.solver.calculator.calculate_route_cost(route_after_nodes, self.dist_matrix)['variable_cost']
 6. cost_inc = cost_after - cost_before
- 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
+✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【算子效果对比】：
 

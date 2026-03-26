@@ -824,7 +824,7 @@ if __name__ == "__main__":
     model_name = 'ep-20260106214023-k4p8b'
     messages_bak = []
 
-    solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\rc1\rc105.txt"
+    solomon_file = r"D:\pythonProject\or_llm_agent\data\1 Solomon Benchmark\rc1\r105.txt"
 
     dataset = load_solomon_data(solomon_file)
     # Patch time windows for depot

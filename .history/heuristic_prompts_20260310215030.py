@@ -109,7 +109,7 @@ HEURISTIC_PLUGIN_TEMPLATE = """
 【算子实现】：
 
 ═════════════════════════════════════════════════════════════
-【1. random_removal】- 随机破坏算子
+【1. random_removal】- 随机破坏算子（成功率2.1%，唯一有效的破坏算子）
 ═════════════════════════════════════════════════════════════
 
 **功能**：随机移除ratio比例的客户节点
@@ -521,14 +521,14 @@ class HeuristicPlugin:
  string_removal 是否删除空路径 `if len(route) > 2`
  greedy_insert 的 best_cost_increase 是否初始化为 `float('inf')`
  greedy_insert 是否用 `<=` 比较（不是 `<`）
- regret_insert 是否处理空列表 `if not removed_nodes`
- regret_insert 的后悔值计算是否基于每条路径的最佳位置（性能优化）
- 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
+✅regret_insert 是否处理空列表 `if not removed_nodes`
+✅ regret_insert 的后悔值计算是否基于每条路径的最佳位置（性能优化）
+✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【 最关键检查 - 成本计算】：
- 是否使用了禁止的简化距离计算：dist_matrix[i][node] + dist_matrix[node][j] - dist_matrix[i][j]
- 是否使用了必需的完整成本计算：self.solver.calculator.calculate_route_cost()
- 新路径是否加上了固定成本：new_route_cost += self.solver.calculator.f
+❌ 是否使用了禁止的简化距离计算：dist_matrix[i][node] + dist_matrix[node][j] - dist_matrix[i][j]
+✅ 是否使用了必需的完整成本计算：self.solver.calculator.calculate_route_cost()
+✅ 新路径是否加上了固定成本：new_route_cost += self.solver.calculator.f
 
 【代码必须包含的关键语句】：
 1. route_before = [self.solver.id_to_customer[n] for n in route]
@@ -537,7 +537,7 @@ class HeuristicPlugin:
 4. route_after_nodes = [self.solver.id_to_customer[n] for n in route_after]
 5. cost_after = self.solver.calculator.calculate_route_cost(route_after_nodes, self.dist_matrix)['variable_cost']
 6. cost_inc = cost_after - cost_before
- 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
+✅ 所有函数是否有容量检查 `route_demand + node_demand <= capacity`
 
 【算子效果对比】：
 
