@@ -1,0 +1,17 @@
+{
+  "exp_name": "高腐损_c101_run2",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "run_id": 2,
+  "seed": 84,
+  "success": true,
+  "best_cost": 77758.2221342864,
+  "num_routes": 19,
+  "elapsed_time": 122,
+  "c2_freshness_cost": 62206.577707429125,
+  "c3_penalty_cost": 3110.328885371456,
+  "param_group": "高腐损",
+  "theta1": 0.004,
+  "theta2": 0.008,
+  "description": "普通货车"
+}

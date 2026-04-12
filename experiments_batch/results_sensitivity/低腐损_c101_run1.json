@@ -1,0 +1,17 @@
+{
+  "exp_name": "低腐损_c101_run1",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "run_id": 1,
+  "seed": 42,
+  "success": true,
+  "best_cost": 61265.19996378592,
+  "num_routes": 19,
+  "elapsed_time": 134,
+  "c2_freshness_cost": 49012.15997102874,
+  "c3_penalty_cost": 2450.6079985514366,
+  "param_group": "低腐损",
+  "theta1": 0.001,
+  "theta2": 0.003,
+  "description": "优质冷链"
+}

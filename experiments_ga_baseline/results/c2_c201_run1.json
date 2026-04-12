@@ -1,0 +1,17 @@
+{
+  "exp_name": "c2_c201_run1",
+  "dataset_type": "c2",
+  "instance": "c201",
+  "run_id": 1,
+  "seed": 718,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:44:29.366887",
+  "success": true,
+  "best_cost": 98724.34064074195,
+  "num_routes": 73,
+  "elapsed_time": 14.416462898254395,
+  "n_customers": 100,
+  "best_gen": 500
+}

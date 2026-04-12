@@ -1,0 +1,17 @@
+{
+  "exp_name": "r1_r101_run1",
+  "dataset_type": "r1",
+  "instance": "r101",
+  "run_id": 1,
+  "seed": 778,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:45:44.889453",
+  "success": true,
+  "best_cost": 31867.30323958172,
+  "num_routes": 36,
+  "elapsed_time": 11.329337120056152,
+  "n_customers": 100,
+  "best_gen": 500
+}

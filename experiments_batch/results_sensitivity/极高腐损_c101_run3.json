@@ -1,0 +1,17 @@
+{
+  "exp_name": "极高腐损_c101_run3",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "run_id": 3,
+  "seed": 126,
+  "success": true,
+  "best_cost": 88203.87162714123,
+  "num_routes": 19,
+  "elapsed_time": 132,
+  "c2_freshness_cost": 70563.09730171299,
+  "c3_penalty_cost": 3528.1548650856494,
+  "param_group": "极高腐损",
+  "theta1": 0.006,
+  "theta2": 0.012,
+  "description": "无冷链"
+}

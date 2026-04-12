@@ -1,0 +1,17 @@
+{
+  "exp_name": "c1_c105_run1",
+  "dataset_type": "c1",
+  "instance": "c105",
+  "run_id": 1,
+  "seed": 572,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:43:53.533172",
+  "success": true,
+  "best_cost": 45969.44458129198,
+  "num_routes": 40,
+  "elapsed_time": 10.658053874969482,
+  "n_customers": 100,
+  "best_gen": 500
+}

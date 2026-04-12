@@ -1,0 +1,17 @@
+{
+  "exp_name": "rc2_rc205_run3",
+  "dataset_type": "rc2",
+  "instance": "rc205",
+  "run_id": 3,
+  "seed": 838,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:49:24.200635",
+  "success": true,
+  "best_cost": 26651.47845991397,
+  "num_routes": 16,
+  "elapsed_time": 8.452234029769897,
+  "n_customers": 100,
+  "best_gen": 500
+}

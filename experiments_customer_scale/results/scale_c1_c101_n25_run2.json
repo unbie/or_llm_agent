@@ -1,0 +1,17 @@
+{
+  "exp_name": "scale_c1_c101_n25_run2",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "n_customers": 25,
+  "run_id": 2,
+  "seed": 4495,
+  "max_iters": 500,
+  "timestamp": "2026-04-09T19:53:57.914903",
+  "success": true,
+  "best_cost": 13112.049952976435,
+  "num_routes": 6,
+  "elapsed_time": 1.18,
+  "last_improve_iter": 417,
+  "improve_count": 8,
+  "cost_per_customer": 524.48
+}

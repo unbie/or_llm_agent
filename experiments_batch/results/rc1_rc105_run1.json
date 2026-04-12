@@ -1,0 +1,13 @@
+{
+  "exp_name": "rc1_rc105_run1",
+  "dataset_type": "rc1",
+  "instance": "rc105",
+  "run_id": 1,
+  "seed": 479,
+  "timestamp": "2026-04-01T20:10:43.518431",
+  "success": false,
+  "best_cost": null,
+  "num_routes": 0,
+  "elapsed_time": 0.11555957794189453,
+  "output": "ERROR: No module named 'utils'\nTraceback (most recent call last):\n  File \"C:\\Users\\86139\\AppData\\Local\\Temp\\tmpwmkqsf1n.py\", line 1392, in <module>\n    solver = HeuristicSolver(data, plugin)\n  File \"C:\\Users\\86139\\AppData\\Local\\Temp\\tmpwmkqsf1n.py\", line 22, in __init__\n    from utils import FreshnessAndPenaltyCalculator\nModuleNotFoundError: No module named 'utils'\n"
+}

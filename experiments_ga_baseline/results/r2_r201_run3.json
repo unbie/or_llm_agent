@@ -1,0 +1,17 @@
+{
+  "exp_name": "r2_r201_run3",
+  "dataset_type": "r2",
+  "instance": "r201",
+  "run_id": 3,
+  "seed": 397,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:47:05.692573",
+  "success": true,
+  "best_cost": 25630.46897777939,
+  "num_routes": 17,
+  "elapsed_time": 8.9401695728302,
+  "n_customers": 100,
+  "best_gen": 500
+}

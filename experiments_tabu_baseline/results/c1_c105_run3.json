@@ -1,0 +1,18 @@
+{
+  "exp_name": "c1_c105_run3",
+  "dataset_type": "c1",
+  "instance": "c105",
+  "run_id": 3,
+  "seed": 1026,
+  "algorithm": "TabuSearch",
+  "max_iter": 1000,
+  "tabu_tenure": 15,
+  "neighborhood_size": 50,
+  "timestamp": "2026-04-12T15:58:39.701361",
+  "success": true,
+  "best_cost": 55033.26717467067,
+  "num_routes": 21,
+  "elapsed_time": 84.61556124687195,
+  "n_customers": 100,
+  "total_iterations": 1000
+}

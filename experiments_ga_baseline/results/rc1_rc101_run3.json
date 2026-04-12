@@ -1,0 +1,17 @@
+{
+  "exp_name": "rc1_rc101_run3",
+  "dataset_type": "rc1",
+  "instance": "rc101",
+  "run_id": 3,
+  "seed": 940,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 500,
+  "timestamp": "2026-04-12T15:48:03.300351",
+  "success": true,
+  "best_cost": 26299.263655993655,
+  "num_routes": 34,
+  "elapsed_time": 9.505205392837524,
+  "n_customers": 100,
+  "best_gen": 500
+}

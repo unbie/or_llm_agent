@@ -1,0 +1,19 @@
+{
+  "exp_name": "c1_c101_run1",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "run_id": 1,
+  "seed": 121,
+  "timestamp": "2026-04-02T19:02:29.892217",
+  "success": true,
+  "best_cost": 69469.04596162139,
+  "num_routes": 21,
+  "elapsed_time": 138.89316821098328,
+  "output": "Solver 初始化成功\n[初始化] 开始生成初始解... (迭代次数: 1000)\n  [初始解尝试 1/3] 成本: 94356.86, 路径数: 23\n  [初始解尝试 2/3] 成本: 87586.22, 路径数: 24\n  [初始解尝试 3/3] 成本: 92275.45, 路径数: 23\n  [选择最优初始解] 成本: 87586.22\n\n[初始解] 成本: 87586.22\n[初始解] 路径数: 24\n[初始解] 可行性: ✓\n\n[ALNS] 开始迭代优化...\n\n[参数] 初始温度: 8758.62, 冷却系数: 0.996096, 迭代次数: 1000\n[迭代   0] ✓ 新最优解! 成本: 85109.21, 路径数: 23\n[迭代   1] ✓ 新最优解! 成本: 78186.43, 路径数: 22\nIter   5: Current=78186.43, Best=78186.43, Temp=8588.97, Routes=22\n[迭代   5] ✓ 新最优解! 成本: 73756.90, 路径数: 22\n[迭代   9] ✓ 新最优解! 成本: 71492.63, 路径数: 21\nIter  10: Current=71492.63, Best=71492.63, Temp=8422.60, Routes=21\n[迭代  10] ✓ 新最优解! 成本: 71314.45, 路径数: 21\n[迭代  12] ✓ 新最优解! 成本: 70075.68, 路径数: 21\n[迭代  13] ✓ 新最优解! 成本: 69947.04, 路径数: 21\nIter  15: Current=69947.04, Best=69947.04, Temp=8259.45, Routes=21\nIter  20: Current=69947.04, Best=69947.04, Temp=8099.47, Routes=21\n[迭代  21] ✓ 新最优解! 成本: 69469.05, 路径数: 21\nIter  25: Current=69469.05, Best=69469.05, Temp=7942.58, Routes=21\nIter  30: Current=71386.16, Best=69469.05, Temp=7788.73, Routes=20\nIter  35: Current=73718.89, Best=69469.05, Temp=7637.86, Routes=19\nIter  40: Current=73718.89, Best=69469.05, Temp=7489.92, Routes=19\nIter  45: Current=72867.42, Best=69469.05, Temp=7344.84, Routes=19\nIter  50: Current=72757.57, Best=69469.05, Temp=7202.57, Routes=19\nIter  55: Current=72757.57, Best=69469.05, Temp=7063.05, Routes=19\nIter  60: Current=72237.20, Best=69469.05, Temp=6926.24, Routes=19\nIter  65: Current=73443.59, Best=69469.05, Temp=6792.08, Routes=19\nIter  70: Current=73443.59, Best=69469.05, Temp=6660.52, Routes=19\nIter  75: Current=73140.88, Best=69469.05, Temp=6531.50, Routes=19\nIter  80: Current=73651.94, Best=69469.05, Temp=6404.99, Routes=19\nIter  85: Current=73651.94, Best=69469.05, Temp=6280.92, Routes=19\nIter  90: Current=78960.01, Best=69469.05, Temp=6159.26, Routes=18\nIter  95: Current=78931.51, Best=69469.05, Temp=6039.95, Routes=18\nIter 100: Current=77752.99, Best=69469.05, Temp=5922.96, Routes=18\nIter 105: Current=77622.62, Best=69469.05, Temp=5808.23, Ro",
+  "param_group": "默认",
+  "theta1": 0.002,
+  "theta2": 0.005,
+  "description": "标准运输",
+  "c2_freshness_cost": 55575.23676929712,
+  "c3_penalty_cost": 2778.761838464856
+}

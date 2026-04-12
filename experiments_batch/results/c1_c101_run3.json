@@ -1,0 +1,13 @@
+{
+  "exp_name": "c1_c101_run3",
+  "dataset_type": "c1",
+  "instance": "c101",
+  "run_id": 3,
+  "seed": 205,
+  "timestamp": "2026-04-02T19:06:46.802534",
+  "success": true,
+  "best_cost": 73802.7256792652,
+  "num_routes": 17,
+  "elapsed_time": 128.6366958618164,
+  "output": "Solver 初始化成功\n[初始化] 开始生成初始解... (迭代次数: 1000)\n  [初始解尝试 1/3] 成本: 94356.86, 路径数: 23\n  [初始解尝试 2/3] 成本: 87586.22, 路径数: 24\n  [初始解尝试 3/3] 成本: 92436.48, 路径数: 23\n  [选择最优初始解] 成本: 87586.22\n\n[初始解] 成本: 87586.22\n[初始解] 路径数: 24\n[初始解] 可行性: ✓\n\n[ALNS] 开始迭代优化...\n\n[参数] 初始温度: 8758.62, 冷却系数: 0.996096, 迭代次数: 1000\n[迭代   2] ✓ 新最优解! 成本: 87530.96, 路径数: 23\n[迭代   4] ✓ 新最优解! 成本: 87444.01, 路径数: 22\nIter   5: Current=87444.01, Best=87444.01, Temp=8588.97, Routes=22\n[迭代   5] ✓ 新最优解! 成本: 85038.61, 路径数: 21\n[迭代   7] ✓ 新最优解! 成本: 80671.27, 路径数: 21\nIter  10: Current=80671.27, Best=80671.27, Temp=8422.60, Routes=21\nIter  15: Current=82802.06, Best=80671.27, Temp=8259.45, Routes=19\nIter  20: Current=82802.06, Best=80671.27, Temp=8099.47, Routes=19\nIter  25: Current=82802.06, Best=80671.27, Temp=7942.58, Routes=19\nIter  30: Current=81037.82, Best=80671.27, Temp=7788.73, Routes=19\nIter  35: Current=88291.20, Best=80671.27, Temp=7637.86, Routes=17\nIter  40: Current=88291.20, Best=80671.27, Temp=7489.92, Routes=17\nIter  45: Current=88579.98, Best=80671.27, Temp=7344.84, Routes=17\nIter  50: Current=88579.98, Best=80671.27, Temp=7202.57, Routes=17\nIter  55: Current=87171.41, Best=80671.27, Temp=7063.05, Routes=17\nIter  60: Current=87171.41, Best=80671.27, Temp=6926.24, Routes=17\nIter  65: Current=87171.41, Best=80671.27, Temp=6792.08, Routes=17\nIter  70: Current=86439.53, Best=80671.27, Temp=6660.52, Routes=17\nIter  75: Current=84229.53, Best=80671.27, Temp=6531.50, Routes=17\nIter  80: Current=83845.41, Best=80671.27, Temp=6404.99, Routes=17\nIter  85: Current=83845.41, Best=80671.27, Temp=6280.92, Routes=17\nIter  90: Current=83845.41, Best=80671.27, Temp=6159.26, Routes=17\nIter  95: Current=84032.79, Best=80671.27, Temp=6039.95, Routes=17\nIter 100: Current=83753.43, Best=80671.27, Temp=5922.96, Routes=17\nIter 105: Current=83613.12, Best=80671.27, Temp=5808.23, Routes=17\nIter 110: Current=83525.60, Best=80671.27, Temp=5695.73, Routes=17\nIter 115: Current=83687.02, Best=80671.27, Temp=5585.40, Routes=17\nIter 120: Curr"
+}

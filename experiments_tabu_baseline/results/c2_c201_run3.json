@@ -1,0 +1,18 @@
+{
+  "exp_name": "c2_c201_run3",
+  "dataset_type": "c2",
+  "instance": "c201",
+  "run_id": 3,
+  "seed": 746,
+  "algorithm": "TabuSearch",
+  "max_iter": 1000,
+  "tabu_tenure": 15,
+  "neighborhood_size": 50,
+  "timestamp": "2026-04-12T16:03:29.562456",
+  "success": true,
+  "best_cost": 286447.85652862804,
+  "num_routes": 13,
+  "elapsed_time": 95.13865113258362,
+  "n_customers": 100,
+  "total_iterations": 1000
+}
