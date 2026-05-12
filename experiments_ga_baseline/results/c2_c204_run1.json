@@ -1,0 +1,17 @@
+{
+  "exp_name": "c2_c204_run1",
+  "dataset_type": "c2",
+  "instance": "c204",
+  "run_id": 1,
+  "seed": 196,
+  "algorithm": "GA",
+  "pop_size": 80,
+  "max_gen": 300,
+  "timestamp": "2026-05-07T21:34:15.628063",
+  "success": true,
+  "best_cost": 32699.88770958575,
+  "num_routes": 34,
+  "elapsed_time": 246.53113293647766,
+  "n_customers": 100,
+  "best_gen": 300
+}

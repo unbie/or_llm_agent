@@ -137,62 +137,73 @@ class GAVRPSolver:
 
     def decode(self, tour: List[int]) -> List[List[int]]:
         """
-        贪心拆分算法 (Greedy Split / Feasibility Check Decoder).
-
-        按 tour 顺序依次将客户加入当前路线；当出现以下情况时，
-        强制当前车辆回场，开启新路线:
-          - 超出车辆容量
-          - 到达时间超过客户软硬时间窗上界 L_i
-
-        返回: 二维路线列表, 每条路线形如 [0, c1, c2, ..., 0]
+        Optimal Split 算法 (DAG shortest path).
+        将 Giant Tour 拆分为最优的路线列表，评估每段真实成本 (距离 + 制冷 + 惩罚).
+        相比贪心拆分，能大幅度降低 C2 类实例中的早到等待惩罚。
         """
+        n = len(tour)
+        # V[i] 存储拆分前 i 个节点的最优成本
+        V = [float('inf')] * (n + 1)
+        V[0] = 0.0
+        # P[i] 存储到达 i 的最优前驱节点
+        P = [0] * (n + 1)
+
+        for i in range(n):
+            if V[i] == float('inf'):
+                continue
+            
+            route_ids = [0]
+            current_load = 0
+            current_time = 0.0
+            current_node = 0
+            
+            for j in range(i + 1, n + 1):
+                cid = tour[j - 1]
+                c = self.id_to_customer[cid]
+                demand = c.get('demand', 0)
+                ready = c.get('ready_time', 0)
+                due = c.get('due_date', float('inf'))
+                l_i = c.get('L_i', due)
+                svc = c.get('service_time', 0)
+                
+                travel = self.dist_matrix[current_node][cid] * (60.0 / self.vehicle_speed)
+                arrival = current_time + travel
+                
+                # 容量约束
+                if current_load + demand > self.capacity:
+                    break
+                    
+                # 迟到约束: 只有当包含多于1个客户时才因时间窗超限而断开，保证必定有解
+                if j > i + 1 and arrival > max(due, l_i):
+                    break
+                    
+                current_load += demand
+                current_time = max(arrival, ready) + svc
+                current_node = cid
+                route_ids.append(cid)
+                
+                # 计算包含回仓库的精确成本
+                temp_route = [self.id_to_customer[nid] for nid in route_ids] + [self.id_to_customer[0]]
+                info = self.calculator.calculate_route_cost(temp_route, self.dist_matrix)
+                edge_cost = self.calculator.f + info['variable_cost']
+                
+                if V[i] + edge_cost < V[j]:
+                    V[j] = V[i] + edge_cost
+                    P[j] = i
+                    
+                # 提前剪枝: 如果成本过大(例如 C2 货损爆发或严重的硬时间窗惩罚)
+                if info['variable_cost'] > 2e4:
+                    break
+
         routes = []
-        current_route = [0]          # 从仓库出发
-        current_load = 0
-        current_time = 0.0           # 离开仓库时刻 (分钟)
-        current_node_id = 0          # 当前位置 (仓库id=0)
-
-        for cust_id in tour:
-            cust = self.id_to_customer[cust_id]
-            demand = cust.get('demand', 0)
-            ready  = cust.get('ready_time', 0)
-            due    = cust.get('due_date', float('inf'))
-            L_i    = cust.get('L_i', due)   # 软时间窗上界 (如无则等于 due_date)
-            svc    = cust.get('service_time', 0)
-
-            # 行驶时间
-            travel = self.dist_matrix[current_node_id][cust_id] * (60.0 / self.vehicle_speed)
-            arrival = current_time + travel
-
-            # ── 可行性判断: 超容量 或 到达时间超出 L_i/due_date ──
-            capacity_ok = (current_load + demand <= self.capacity)
-            time_ok = (arrival <= max(due, L_i))
-
-            if not capacity_ok or not time_ok:
-                # 当前路线已满，回仓库并开启新路线
-                current_route.append(0)
-                if len(current_route) > 2:
-                    routes.append(current_route)
-                # 重置状态
-                current_route = [0]
-                current_load = 0
-                current_time = 0.0
-                current_node_id = 0
-                # 重新计算从仓库出发
-                travel = self.dist_matrix[0][cust_id] * (60.0 / self.vehicle_speed)
-                arrival = travel
-
-            # 更新状态
-            current_load += demand
-            current_time = max(arrival, ready) + svc   # 等候 + 服务
-            current_node_id = cust_id
-            current_route.append(cust_id)
-
-        # 收尾: 最后一条路线
-        current_route.append(0)
-        if len(current_route) > 2:
-            routes.append(current_route)
-
+        curr = n
+        while curr > 0:
+            prev = P[curr]
+            route = [0] + tour[prev:curr] + [0]
+            routes.append(route)
+            curr = prev
+            
+        routes.reverse()
         return routes
 
     # ═══════════════════════════════════════════════

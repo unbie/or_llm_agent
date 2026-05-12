@@ -1,0 +1,14 @@
+{
+  "type": "final",
+  "baseline_cost": 34137.372386737334,
+  "final_cost": 33975.99827296148,
+  "final_best_cost": 33975.99827296148,
+  "final_std_cost": 0.0,
+  "eval_runs": 1,
+  "seeds": [
+    42
+  ],
+  "total_improvement_pct": 0.47271978624386,
+  "num_routes": 32,
+  "elapsed_time": 197.40007543563843
+}

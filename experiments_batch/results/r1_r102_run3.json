@@ -1,0 +1,13 @@
+{
+  "exp_name": "r1_r102_run3",
+  "dataset_type": "r1",
+  "instance": "r102",
+  "run_id": 3,
+  "seed": 506,
+  "timestamp": "2026-05-06T15:39:09.717458",
+  "success": false,
+  "best_cost": null,
+  "num_routes": 0,
+  "elapsed_time": 600,
+  "output": "TIMEOUT"
+}

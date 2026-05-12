@@ -1,0 +1,16 @@
+{
+  "exp_name": "c1_c102_run3",
+  "dataset_type": "c1",
+  "instance": "c102",
+  "run_id": 3,
+  "seed": 657,
+  "algorithm": "ALNS_Baseline",
+  "max_iter": 1000,
+  "timestamp": "2026-05-06T16:46:09.517370",
+  "success": true,
+  "best_cost": 35081.88718536661,
+  "num_routes": 31,
+  "elapsed_time": 202.71505212783813,
+  "n_customers": 100,
+  "total_iterations": 1000
+}

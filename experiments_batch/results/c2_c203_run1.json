@@ -1,0 +1,13 @@
+{
+  "exp_name": "c2_c203_run1",
+  "dataset_type": "c2",
+  "instance": "c203",
+  "run_id": 1,
+  "seed": 158,
+  "timestamp": "2026-05-06T13:51:24.969780",
+  "success": true,
+  "best_cost": 317201.62938845466,
+  "num_routes": 7,
+  "elapsed_time": 184.5287914276123,
+  "output": "Solver 初始化成功\n[初始化] 开始生成初始解... (迭代次数: 1000)\n  [初始解尝试 1/3] 成本: 578292.33, 路径数: 11\n  [初始解尝试 2/3] 成本: 578292.33, 路径数: 11\n  [初始解尝试 3/3] 成本: 578292.33, 路径数: 11\n  [选择最优初始解] 成本: 578292.33\n\n[初始解] 成本: 578292.33\n[初始解] 路径数: 11\n[初始解] 可行性: ✓\n\n[ALNS] 开始迭代优化...\n\n[参数] 初始温度: 57829.23, 冷却系数: 0.996096, 迭代次数: 1000\n[迭代   0] ✓ 新最优解! 成本: 575954.24, 路径数: 10\nIter   5: Current=575954.24, Best=575954.24, Temp=56709.08, Routes=10\n[迭代   6] ✓ 新最优解! 成本: 480090.00, 路径数: 9\nIter  10: Current=494102.97, Best=480090.00, Temp=55610.62, Routes=8\nIter  15: Current=494102.97, Best=480090.00, Temp=54533.44, Routes=8\nIter  20: Current=490845.17, Best=480090.00, Temp=53477.12, Routes=7\nIter  25: Current=490845.17, Best=480090.00, Temp=52441.27, Routes=7\nIter  30: Current=490845.17, Best=480090.00, Temp=51425.48, Routes=7\nIter  35: Current=490845.17, Best=480090.00, Temp=50429.36, Routes=7\nIter  40: Current=490845.17, Best=480090.00, Temp=49452.54, Routes=7\nIter  45: Current=490845.17, Best=480090.00, Temp=48494.65, Routes=7\nIter  50: Current=490845.17, Best=480090.00, Temp=47555.30, Routes=7\n[迭代  50] ✓ 新最优解! 成本: 440584.86, 路径数: 7\nIter  55: Current=440584.86, Best=440584.86, Temp=46634.15, Routes=7\nIter  60: Current=440584.86, Best=440584.86, Temp=45730.85, Routes=7\nIter  65: Current=440584.86, Best=440584.86, Temp=44845.04, Routes=7\nIter  70: Current=440584.86, Best=440584.86, Temp=43976.39, Routes=7\nIter  75: Current=440584.86, Best=440584.86, Temp=43124.56, Routes=7\nIter  80: Current=440584.86, Best=440584.86, Temp=42289.24, Routes=7\n[迭代  83] ✓ 新最优解! 成本: 414980.18, 路径数: 7\nIter  85: Current=414980.18, Best=414980.18, Temp=41470.09, Routes=7\nIter  90: Current=414980.18, Best=414980.18, Temp=40666.81, Routes=7\nIter  95: Current=414980.18, Best=414980.18, Temp=39879.09, Routes=7\nIter 100: Current=414980.18, Best=414980.18, Temp=39106.63, Routes=7\n[迭代 102] ✓ 新最优解! 成本: 394962.49, 路径数: 7\nIter 105: Current=394962.49, Best=394962.49, Temp=38349.14, Routes=7\n[迭代 105] ✓ 新最优解! 成本: 383364.04, 路径数: 7\nIter 110: Current=38"
+}

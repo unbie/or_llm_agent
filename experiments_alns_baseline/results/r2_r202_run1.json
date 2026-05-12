@@ -1,0 +1,16 @@
+{
+  "exp_name": "r2_r202_run1",
+  "dataset_type": "r2",
+  "instance": "r202",
+  "run_id": 1,
+  "seed": 149,
+  "algorithm": "ALNS_Baseline",
+  "max_iter": 300,
+  "timestamp": "2026-05-06T19:13:35.856594",
+  "success": true,
+  "best_cost": 18067.1753288582,
+  "num_routes": 9,
+  "elapsed_time": 54.488969564437866,
+  "n_customers": 100,
+  "total_iterations": 300
+}

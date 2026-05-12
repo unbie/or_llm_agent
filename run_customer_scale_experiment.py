@@ -2,10 +2,10 @@
 """
 Customer Scale Parameter Tuning Experiment
 
-1. Uses pre-defined HeuristicPlugin code (no LLM calls)
+1. Uses baseline_alns.ALNSVRPSolver directly (no LLM calls)
 2. Subsets Solomon Benchmark to different customer counts
-3. Runs on 3 typical datasets (c101, r101, rc101)
-4. Each config runs 3 times for stability
+3. Runs once on C2/R1/R2/RC1/RC2 by default
+4. Each config runs once, starting from C2 by default
 
 Zero LLM Token cost!
 """
@@ -23,9 +23,11 @@ import sys
 import json
 import time
 import random
+import argparse
 import copy
 import math
 import re
+import hashlib
 from pathlib import Path
 from datetime import datetime
 import subprocess
@@ -35,9 +37,10 @@ import tempfile
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from heuristic_skeleton import HEURISTIC_SKELETON
+from baseline_alns import ALNSVRPSolver
 
 # ============================================================
-# 预定义的HeuristicPlugin代码（与 run_batch_no_llm.py 保持一致）
+# 旧版固定 HeuristicPlugin 代码保留为历史参考；当前实验直接调用 ALNSVRPSolver
 # ============================================================
 
 FIXED_PLUGIN_CODE = '''
@@ -425,86 +428,33 @@ def run_single_experiment(dataset_path, n_customers, max_iters=1000, seed=None):
     # 添加时间窗字段
     patch_time_windows(dataset)
     
-    # 构建完整代码
-    full_code = (
-        "# -*- coding: utf-8 -*-\n"
-        "import sys\n"
-        "import io\n"
-        "sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')\n"
-        "sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')\n\n"
-    )
-    full_code += UTILS_CODE + "\n\n"
-    full_code += HEURISTIC_SKELETON.replace(
-        "from utils import FreshnessAndPenaltyCalculator",
-        "# FreshnessAndPenaltyCalculator already defined above"
-    ) + "\n\n"
-    full_code += FIXED_PLUGIN_CODE + "\n\n"
-    full_code += (
-        "if __name__ == '__main__':\n"
-        "    import sys, traceback, time\n"
-        f"    data = {repr(dataset)}\n"
-        "    try:\n"
-        "        plugin = HeuristicPlugin(data=data)\n"
-        "        solver = HeuristicSolver(data, plugin)\n"
-        f"        best_sol, best_cost = solver.solve(max_iters={max_iters})\n"
-        "        print(f'BEST_COST: {best_cost}')\n"
-        "        print(f'NUM_ROUTES: {len(best_sol)}')\n"
-        f"        print(f'NUM_CUSTOMERS: {actual_n}')\n"
-        "        for i, route in enumerate(best_sol):\n"
-        "            print(f'Route {i+1}: {route}')\n"
-        "    except Exception as e:\n"
-        "        print(f'ERROR: {e}')\n"
-        "        traceback.print_exc()\n"
-    )
-    
-    # 执行代码
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
-        f.write(full_code)
-        temp_file = f.name
-    
     try:
         start_time = time.time()
-        result = subprocess.run(
-            [sys.executable, temp_file],
-            capture_output=True,
-            text=True,
-            timeout=1800,  # 30分钟超时
-            encoding='utf-8',
-            errors='replace',
-            cwd=os.path.dirname(os.path.abspath(__file__))
+        solver = ALNSVRPSolver(
+            data=dataset,
+            max_iter=max_iters,
+            seed=seed,
+            verbose=False,
+            time_budget_sec=1800,
         )
         elapsed_time = time.time() - start_time
-        
-        output = result.stdout + result.stderr
-        
-        # 提取结果
-        best_cost = None
-        num_routes = 0
+        best_solution, best_cost = solver.solve()
+        elapsed_time = time.time() - start_time
+        num_routes = len(best_solution)
         last_improve_iter = 0
-        
-        cost_match = re.search(r'BEST_COST:\s*([\d.]+)', output)
-        if cost_match:
-            best_cost = float(cost_match.group(1))
-        
-        route_match = re.search(r'NUM_ROUTES:\s*(\d+)', output)
-        if route_match:
-            num_routes = int(route_match.group(1))
-        
-        # 提取最后改进迭代次数
-        improve_match = re.search(r'最后改进:\s*第\s*(\d+)\s*次迭代', output)
-        if improve_match:
-            last_improve_iter = int(improve_match.group(1))
-        
-        # 提取改进次数
-        improve_count = 0
-        improve_count_match = re.search(r'改进次数:\s*(\d+)', output)
-        if improve_count_match:
-            improve_count = int(improve_count_match.group(1))
-        
-        success = best_cost is not None
+        improve_count = sum(
+            1
+            for prev, curr in zip(solver.best_cost_history, solver.best_cost_history[1:])
+            if curr < prev
+        )
+        output = (
+            f"BEST_COST: {best_cost}\n"
+            f"NUM_ROUTES: {num_routes}\n"
+            f"NUM_CUSTOMERS: {actual_n}\n"
+        )
         
         return {
-            'success': success,
+            'success': best_cost is not None,
             'best_cost': best_cost,
             'num_routes': num_routes,
             'elapsed_time': round(elapsed_time, 2),
@@ -512,7 +462,7 @@ def run_single_experiment(dataset_path, n_customers, max_iters=1000, seed=None):
             'improve_count': improve_count,
             'n_customers': actual_n,
             'cost_per_customer': round(best_cost / actual_n, 2) if best_cost and actual_n > 0 else None,
-            'output': output[:3000]  # 截断保存
+            'output': output
         }
         
     except subprocess.TimeoutExpired:
@@ -529,16 +479,14 @@ def run_single_experiment(dataset_path, n_customers, max_iters=1000, seed=None):
             'n_customers': n_customers, 'cost_per_customer': None,
             'output': str(e)
         }
-    finally:
-        if os.path.exists(temp_file):
-            os.unlink(temp_file)
 
 
-def run_customer_scale_experiments():
+def run_customer_scale_experiments(force_rerun: bool = False):
     """运行客户数调参批量实验"""
     print("=" * 70)
     print("客户数/订单数调参实验 - Customer Scale Parameter Tuning")
     print("使用固定算子代码，不调用LLM，零Token消耗")
+    print(f"续跑模式: {'关闭(全量重跑)' if force_rerun else '开启(自动跳过已完成)'}")
     print("=" * 70)
     print()
     
@@ -554,26 +502,48 @@ def run_customer_scale_experiments():
     # 客户数梯度
     customer_counts = [15, 25, 50, 75, 100]
     
-    # 测试数据集（3种典型分布）
+    # 测试数据集：默认从 C2 开始，保留已有 C1 结果
     dataset_base = Path("data/1 Solomon Benchmark")
     datasets = [
-        ('c1', 'c101.txt', 'Clustered+Narrow TW'),
-        # ('r1', 'r101.txt', 'Random+Narrow TW'),
-        # ('rc1', 'rc101.txt', 'Mixed+Narrow TW'),
+        ('c2', 'c201.txt', 'Clustered+Wide TW'),
+        ('r1', 'r101.txt', 'Random+Narrow TW'),
+        ('r2', 'r201.txt', 'Random+Wide TW'),
+        ('rc1', 'rc101.txt', 'Mixed+Narrow TW'),
+        ('rc2', 'rc201.txt', 'Mixed+Wide TW'),
     ]
+
+    def build_stable_seed(instance_name: str, n_customers: int, run_id: int, base: int = 42) -> int:
+        """构建跨进程稳定种子，避免使用内置 hash 导致重复实验不可复现。"""
+        key = f"{instance_name}_{n_customers}"
+        digest = hashlib.md5(key.encode('utf-8')).hexdigest()
+        bucket = int(digest[:8], 16) % 10000
+        return run_id * base + bucket
     
-    # 每个配置运行次数
-    num_runs = 3
+    # 每个配置运行次数：按当前需求只跑一次
+    num_runs = 1
     
     # ALNS 迭代次数（根据客户数自适应调整）
     def get_max_iters(n_customers):
         """根据客户数调整迭代次数"""
         if n_customers <= 25:
-            return 500   # 小规模不需要太多迭代
+            return 1000
         elif n_customers <= 50:
-            return 800
+            return 1500
+        elif n_customers <= 75:
+            return 2200
         else:
-            return 1000  # 大规模需要更多迭代
+            return 3000
+
+    def is_premature_convergence(result: dict, n_customers: int, max_iters: int) -> bool:
+        """判断是否出现早熟收敛（用于n=75波动修复）。"""
+        if not result.get('success', False):
+            return False
+        if n_customers < 75:
+            return False
+        last_improve = int(result.get('last_improve_iter', 0) or 0)
+        improve_count = int(result.get('improve_count', 0) or 0)
+        # 最后改进发生得过早，且改进次数偏少，视为可疑早熟
+        return last_improve > 0 and last_improve < max(40, int(0.08 * max_iters)) and improve_count <= 20
     
     # 计算总实验数
     total_experiments = len(customer_counts) * len(datasets) * num_runs
@@ -610,9 +580,22 @@ def run_customer_scale_experiments():
             for run_id in range(1, num_runs + 1):
                 exp_idx += 1
                 exp_name = f"scale_{dataset_type}_{instance_name}_n{n_customers}_run{run_id}"
+                result_file = results_dir / f"{exp_name}.json"
+
+                if (not force_rerun) and result_file.exists():
+                    try:
+                        with open(result_file, 'r', encoding='utf-8') as f:
+                            cached = json.load(f)
+                        all_results.append(cached)
+                        print(f"\n  [{exp_idx}/{total_experiments}] {exp_name}")
+                        print("    [SKIP] 已存在结果文件，复用历史结果")
+                        continue
+                    except Exception:
+                        # 读取缓存失败则回退为正常重跑
+                        pass
                 
                 max_iters = get_max_iters(n_customers)
-                seed = run_id * 42 + hash(f"{instance_name}_{n_customers}") % 10000
+                seed = build_stable_seed(instance_name, n_customers, run_id)
                 
                 print(f"\n  [{exp_idx}/{total_experiments}] {exp_name}")
                 print(f"    客户数: {n_customers}, 迭代: {max_iters}, 种子: {seed}")
@@ -623,13 +606,17 @@ def run_customer_scale_experiments():
                     max_iters=max_iters,
                     seed=seed
                 )
+
+                selected_seed = seed
+                rerun_count = 0
                 
                 if result['success']:
                     print(f"    [OK] Cost={result['best_cost']:.2f}, "
                           f"Routes={result['num_routes']}, "
                           f"Cost/Cust={result['cost_per_customer']:.2f}, "
                           f"Time={result['elapsed_time']:.1f}s, "
-                          f"LastImprove=Iter{result['last_improve_iter']}")
+                          f"LastImprove=Iter{result['last_improve_iter']}, "
+                          f"Retries={rerun_count}")
                 else:
                     failed_count += 1
                     print(f"    [FAIL]")
@@ -641,8 +628,9 @@ def run_customer_scale_experiments():
                     'instance': instance_name,
                     'n_customers': n_customers,
                     'run_id': run_id,
-                    'seed': seed,
+                    'seed': selected_seed,
                     'max_iters': max_iters,
+                    'retry_count': rerun_count,
                     'timestamp': datetime.now().isoformat(),
                     **result
                 }
@@ -650,7 +638,6 @@ def run_customer_scale_experiments():
                 all_results.append(result_data)
                 
                 # 单独保存每个实验结果
-                result_file = results_dir / f"{exp_name}.json"
                 with open(result_file, 'w', encoding='utf-8') as f:
                     # 不保存冗长的 output 到单独文件
                     save_data = {k: v for k, v in result_data.items() if k != 'output'}
@@ -707,4 +694,7 @@ def run_customer_scale_experiments():
 
 
 if __name__ == "__main__":
-    run_customer_scale_experiments()
+    parser = argparse.ArgumentParser(description="客户规模实验（支持断点续跑）")
+    parser.add_argument('--force-rerun', action='store_true', help='忽略已有结果，执行全量重跑')
+    args = parser.parse_args()
+    run_customer_scale_experiments(force_rerun=args.force_rerun)

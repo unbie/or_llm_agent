@@ -1,0 +1,13 @@
+{
+  "exp_name": "c1_c102_run2",
+  "dataset_type": "c1",
+  "instance": "c102",
+  "run_id": 2,
+  "seed": 817,
+  "timestamp": "2026-05-06T13:11:26.901825",
+  "success": true,
+  "best_cost": 68444.36479982205,
+  "num_routes": 16,
+  "elapsed_time": 156.70654392242432,
+  "output": "Solver 初始化成功\n[初始化] 开始生成初始解... (迭代次数: 1000)\n  [初始解尝试 1/3] 成本: 117101.06, 路径数: 20\n  [初始解尝试 2/3] 成本: 110567.21, 路径数: 20\n  [初始解尝试 3/3] 成本: 113096.54, 路径数: 20\n  [选择最优初始解] 成本: 110567.21\n\n[初始解] 成本: 110567.21\n[初始解] 路径数: 20\n[初始解] 可行性: ✓\n\n[ALNS] 开始迭代优化...\n\n[参数] 初始温度: 11056.72, 冷却系数: 0.996096, 迭代次数: 1000\n[迭代   0] ✓ 新最优解! 成本: 102523.69, 路径数: 19\nIter   5: Current=102523.69, Best=102523.69, Temp=10842.55, Routes=19\n[迭代   8] ✓ 新最优解! 成本: 101439.94, 路径数: 18\nIter  10: Current=101439.94, Best=101439.94, Temp=10632.53, Routes=18\nIter  15: Current=103608.41, Best=101439.94, Temp=10426.58, Routes=17\nIter  20: Current=106307.39, Best=101439.94, Temp=10224.61, Routes=16\nIter  25: Current=106307.39, Best=101439.94, Temp=10026.56, Routes=16\nIter  30: Current=106307.39, Best=101439.94, Temp=9832.35, Routes=16\nIter  35: Current=106307.39, Best=101439.94, Temp=9641.89, Routes=16\nIter  40: Current=106307.39, Best=101439.94, Temp=9455.13, Routes=16\nIter  45: Current=106307.39, Best=101439.94, Temp=9271.98, Routes=16\nIter  50: Current=106307.39, Best=101439.94, Temp=9092.39, Routes=16\nIter  55: Current=106307.39, Best=101439.94, Temp=8916.27, Routes=16\nIter  60: Current=106307.39, Best=101439.94, Temp=8743.56, Routes=16\nIter  65: Current=106307.39, Best=101439.94, Temp=8574.19, Routes=16\nIter  70: Current=106307.39, Best=101439.94, Temp=8408.11, Routes=16\nIter  75: Current=106307.39, Best=101439.94, Temp=8245.25, Routes=16\n[迭代  75] ✓ 新最优解! 成本: 96024.69, 路径数: 16\n[迭代  76] ✓ 新最优解! 成本: 87253.41, 路径数: 16\nIter  80: Current=87253.41, Best=87253.41, Temp=8085.53, Routes=16\n[迭代  81] ✓ 新最优解! 成本: 86598.34, 路径数: 16\n[迭代  83] ✓ 新最优解! 成本: 80405.80, 路径数: 16\nIter  85: Current=80405.80, Best=80405.80, Temp=7928.92, Routes=16\nIter  90: Current=81254.56, Best=80405.80, Temp=7775.33, Routes=16\n[迭代  90] ✓ 新最优解! 成本: 78296.84, 路径数: 16\n[迭代  94] ✓ 新最优解! 成本: 77894.73, 路径数: 16\nIter  95: Current=77894.73, Best=77894.73, Temp=7624.72, Routes=16\nIter 100: Current=77894.73, Best=77894.73, Temp=7477.03, Routes=16\n[迭代 101] ✓ 新最优解!"
+}

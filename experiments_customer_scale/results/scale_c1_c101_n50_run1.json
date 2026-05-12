@@ -4,14 +4,15 @@
   "instance": "c101",
   "n_customers": 50,
   "run_id": 1,
-  "seed": 1363,
+  "seed": 1891,
   "max_iters": 800,
-  "timestamp": "2026-04-09T19:54:13.992425",
+  "retry_count": 0,
+  "timestamp": "2026-04-23T21:38:21.202433",
   "success": true,
-  "best_cost": 35034.24225022743,
-  "num_routes": 9,
-  "elapsed_time": 14.82,
-  "last_improve_iter": 552,
-  "improve_count": 22,
-  "cost_per_customer": 700.68
+  "best_cost": 26054.412686281466,
+  "num_routes": 12,
+  "elapsed_time": 12.8,
+  "last_improve_iter": 68,
+  "improve_count": 21,
+  "cost_per_customer": 521.09
 }

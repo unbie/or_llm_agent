@@ -1,0 +1,18 @@
+{
+  "exp_name": "scale_r2_r201_n50_run1",
+  "dataset_type": "r2",
+  "instance": "r201",
+  "n_customers": 50,
+  "run_id": 1,
+  "seed": 7161,
+  "max_iters": 1500,
+  "retry_count": 0,
+  "timestamp": "2026-05-10T21:45:37.735983",
+  "success": true,
+  "best_cost": 10302.897139819539,
+  "num_routes": 6,
+  "elapsed_time": 23.86,
+  "last_improve_iter": 0,
+  "improve_count": 48,
+  "cost_per_customer": 206.06
+}

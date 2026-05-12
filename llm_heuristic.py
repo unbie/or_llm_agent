@@ -227,7 +227,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
         uses_simple_dist = "self.dist_matrix[" in llm_plugin_code and "- self.dist_matrix[" in llm_plugin_code
         print(f"\n[成本计算检查] 使用完整成本: {uses_full_cost}, 使用简化距离: {uses_simple_dist}")
         if not uses_full_cost:
-            print("⚠️ 警告：LLM生成的代码未使用完整成本计算函数！")
+            print("Warning: LLM生成的代码未使用完整成本计算函数！")
         
         # === 强制提取 HeuristicPlugin 类（防止 LLM 生成其他内容）===
         print("\n[Code Generation] Extracting HeuristicPlugin class...")
@@ -379,7 +379,7 @@ def generate_or_code_solver(messages_bak, model_name, data, max_attempts=3):
             "        print('[Initialization] Plugin initialized')\n"
             "        solver = HeuristicSolver(data, plugin)\n"
             "        print('[Initialization] Solver initialized')\n"
-            "        best_sol, best_cost = solver.solve(max_iters=1000)\n"
+            "        best_sol, best_cost = solver.solve(max_iters=3000)\n"
             "        print(f'BEST_COST: {best_cost}')\n"
             "        print(f'BEST_SOLUTION: {best_sol}')\n"
             "    except Exception as e:\n"

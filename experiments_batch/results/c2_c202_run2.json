@@ -1,0 +1,13 @@
+{
+  "exp_name": "c2_c202_run2",
+  "dataset_type": "c2",
+  "instance": "c202",
+  "run_id": 2,
+  "seed": 987,
+  "timestamp": "2026-05-06T13:44:57.429610",
+  "success": true,
+  "best_cost": 285920.1171785954,
+  "num_routes": 10,
+  "elapsed_time": 179.46730518341064,
+  "output": "Solver 初始化成功\n[初始化] 开始生成初始解... (迭代次数: 1000)\n  [初始解尝试 1/3] 成本: 490987.53, 路径数: 14\n  [初始解尝试 2/3] 成本: 472073.50, 路径数: 14\n  [初始解尝试 3/3] 成本: 454863.40, 路径数: 15\n  [选择最优初始解] 成本: 454863.40\n\n[初始解] 成本: 454863.40\n[初始解] 路径数: 15\n[初始解] 可行性: ✓\n\n[ALNS] 开始迭代优化...\n\n[参数] 初始温度: 45486.34, 冷却系数: 0.996096, 迭代次数: 1000\n[迭代   1] ✓ 新最优解! 成本: 385506.67, 路径数: 14\nIter   5: Current=387110.70, Best=385506.67, Temp=44605.27, Routes=13\nIter  10: Current=387110.70, Best=385506.67, Temp=43741.26, Routes=13\nIter  15: Current=387110.70, Best=385506.67, Temp=42893.99, Routes=13\n[迭代  17] ✓ 新最优解! 成本: 331984.74, 路径数: 12\nIter  20: Current=331984.74, Best=331984.74, Temp=42063.13, Routes=12\nIter  25: Current=331984.74, Best=331984.74, Temp=41248.37, Routes=12\n[迭代  25] ✓ 新最优解! 成本: 311730.48, 路径数: 12\nIter  30: Current=311730.48, Best=311730.48, Temp=40449.38, Routes=12\nIter  35: Current=311730.48, Best=311730.48, Temp=39665.88, Routes=12\nIter  40: Current=311730.48, Best=311730.48, Temp=38897.54, Routes=12\n[迭代  42] ✓ 新最优解! 成本: 294973.42, 路径数: 12\nIter  45: Current=294973.42, Best=294973.42, Temp=38144.10, Routes=12\n[迭代  45] ✓ 新最优解! 成本: 286365.47, 路径数: 12\nIter  50: Current=300135.26, Best=286365.47, Temp=37405.24, Routes=11\nIter  55: Current=300135.26, Best=286365.47, Temp=36680.70, Routes=11\nIter  60: Current=323360.73, Best=286365.47, Temp=35970.19, Routes=10\nIter  65: Current=323360.73, Best=286365.47, Temp=35273.45, Routes=10\nIter  70: Current=319866.98, Best=286365.47, Temp=34590.20, Routes=10\nIter  75: Current=317446.79, Best=286365.47, Temp=33920.19, Routes=10\nIter  80: Current=309145.32, Best=286365.47, Temp=33263.15, Routes=10\nIter  85: Current=299472.92, Best=286365.47, Temp=32618.84, Routes=10\nIter  90: Current=298948.91, Best=286365.47, Temp=31987.01, Routes=10\nIter  95: Current=297930.47, Best=286365.47, Temp=31367.42, Routes=10\nIter 100: Current=298178.44, Best=286365.47, Temp=30759.83, Routes=10\nIter 105: Current=297556.85, Best=286365.47, Temp=30164.01, Routes=10\nIter 110: Current=296280.88, Best=2"
+}

@@ -1,0 +1,16 @@
+{
+  "exp_name": "r1_r104_run1",
+  "dataset_type": "r1",
+  "instance": "r104",
+  "run_id": 1,
+  "seed": 609,
+  "algorithm": "ALNS_Baseline",
+  "max_iter": 300,
+  "timestamp": "2026-05-06T19:07:28.396076",
+  "success": true,
+  "best_cost": 10182.192983002074,
+  "num_routes": 18,
+  "elapsed_time": 29.76833724975586,
+  "n_customers": 100,
+  "total_iterations": 300
+}

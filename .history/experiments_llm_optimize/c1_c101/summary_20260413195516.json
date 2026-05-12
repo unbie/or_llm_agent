@@ -1,0 +1,26 @@
+{
+  "dataset": "c1/c101",
+  "n_customers": 100,
+  "max_rounds": 1,
+  "iters_per_round": 10,
+  "baseline_cost": 51818.14750989162,
+  "best_cost": 44293.68665794582,
+  "total_improvement_pct": 14.520898977543428,
+  "rounds": [
+    {
+      "round": 0,
+      "type": "baseline",
+      "cost": 51818.14750989162,
+      "num_routes": 31
+    },
+    {
+      "round": 1,
+      "type": "rejected",
+      "cost": 61682.948851491514,
+      "prev_cost": 51818.14750989162,
+      "change_pct": 19.037348526820246,
+      "num_routes": 32
+    }
+  ],
+  "timestamp": "2026-04-13T12:58:37.950582"
+}

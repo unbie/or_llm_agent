@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "type": "skipped",
+  "reason": "change_ratio_exceeded",
+  "change_ratio": 0.4734513274336283,
+  "max_change_ratio": 0.35
+}

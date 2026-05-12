@@ -1,0 +1,67 @@
+---
+title: LLM优化算子与传统ALNS_GA对比实验
+description: 基于C101、C105、C201、C205四个算例，对LLM优化后算子、传统ALNS和GA进行结果对比
+author: OR-LLM Agent
+ms.date: 2026-04-16
+ms.topic: concept
+keywords:
+  - LLM
+  - ALNS
+  - GA
+  - C101
+  - C105
+  - C201
+  - C205
+estimated_reading_time: 5
+---
+
+## 实验范围与口径
+
+- 对比算例：c1/c101、c1/c105、c2/c201、c2/c205
+- 对比对象：
+  - LLM优化算子：取每个算例在优化过程中的最优成本
+  - 传统ALNS：取3次独立运行中的最优成本与平均成本
+  - GA：取3次独立运行中的最优成本与平均成本
+- 成本越低越好
+
+## 数据来源
+
+- LLM优化结果目录：
+  - [experiments_llm_optimize/c1_c101](../experiments_llm_optimize/c1_c101)
+  - [experiments_llm_optimize/c1_c105](../experiments_llm_optimize/c1_c105)
+  - [experiments_llm_optimize/c2_c201](../experiments_llm_optimize/c2_c201)
+  - [experiments_llm_optimize/c2_c205](../experiments_llm_optimize/c2_c205)
+- ALNS基线结果目录：
+  - [experiments_alns_baseline/results](../experiments_alns_baseline/results)
+- GA基线结果目录：
+  - [experiments_ga_baseline/results](../experiments_ga_baseline/results)
+
+## 对比结果
+
+| 算例    | LLM优化最优 | ALNS最优 | ALNS均值 |   GA最优 |   GA均值 | LLM对ALNS最优提升 | LLM对GA最优提升 |
+| ------- | ----------: | -------: | -------: | -------: | -------: | ----------------: | --------------: |
+| c1/c101 |    43597.54 | 43419.24 | 43738.85 | 48079.89 | 48582.94 |            -0.41% |          +9.32% |
+| c1/c105 |    41956.55 | 42283.96 | 42434.18 | 45969.44 | 46368.18 |            +0.77% |          +8.73% |
+| c2/c201 |    96727.61 | 96736.71 | 96766.95 | 98724.34 | 99326.07 |            +0.01% |          +2.02% |
+| c2/c205 |    92947.04 | 92773.52 | 92888.07 | 95760.41 | 95889.95 |            -0.19% |          +2.94% |
+
+## 关键发现
+
+- 相比GA，LLM优化算子在4个算例上全部占优，优势区间约为2.02%到9.32%。
+- 相比传统ALNS，LLM优化算子在4个算例中2胜2负：
+  - 明显占优：c1/c105（+0.77%）
+  - 轻微占优：c2/c201（+0.01%，基本持平）
+  - 轻微落后：c1/c101（-0.41%）与c2/c205（-0.19%）
+- 结论：LLM算子优化对GA有稳定优势，但对强基线ALNS的优势不稳定，呈现“实例相关”的效果。
+
+## 补充观察（LLM内部优化收益）
+
+- c1/c101：由44589.99降至43597.54，提升2.23%
+- c1/c105：由43258.10降至41956.55，提升3.01%
+- c2/c201：由96840.92降至96727.61，提升0.12%
+- c2/c205：无提升（0.00%）
+
+## 实验结论
+
+- 如果目标是替代GA，LLM优化算子具备明确收益。
+- 如果目标是稳定超越传统ALNS，需要针对c1/c101、c2/c205这类难例继续做定向算子约束与接受策略优化。

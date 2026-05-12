@@ -1,0 +1,52 @@
+{
+  "dataset": "c1/c102",
+  "n_customers": 100,
+  "max_rounds": 3,
+  "iters_per_round": 300,
+  "eval_runs": 1,
+  "seed_step": 97,
+  "baseline_cost": 34137.372386737334,
+  "best_cost": 34137.372386737334,
+  "total_improvement_pct": 0.0,
+  "rounds": [
+    {
+      "round": 0,
+      "type": "baseline",
+      "cost": 34137.372386737334,
+      "best_cost": 34137.372386737334,
+      "std_cost": 0.0,
+      "num_routes": 33
+    },
+    {
+      "round": 1,
+      "type": "rejected",
+      "cost": 36638.120601453964,
+      "best_cost": 36638.120601453964,
+      "std_cost": 0.0,
+      "prev_cost": 34137.372386737334,
+      "change_pct": 7.325543941654375,
+      "num_routes": 31
+    },
+    {
+      "round": 2,
+      "type": "rejected",
+      "cost": 35089.10987001599,
+      "best_cost": 35089.10987001599,
+      "std_cost": 0.0,
+      "prev_cost": 34137.372386737334,
+      "change_pct": 2.787963503741774,
+      "num_routes": 31
+    },
+    {
+      "round": 3,
+      "type": "rejected",
+      "cost": 71515.14636586883,
+      "best_cost": 71515.14636586883,
+      "std_cost": 0.0,
+      "prev_cost": 34137.372386737334,
+      "change_pct": 109.49224080776962,
+      "num_routes": 27
+    }
+  ],
+  "timestamp": "2026-05-07T11:02:13.938138"
+}

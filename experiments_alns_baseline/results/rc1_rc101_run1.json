@@ -1,0 +1,16 @@
+{
+  "exp_name": "rc1_rc101_run1",
+  "dataset_type": "rc1",
+  "instance": "rc101",
+  "run_id": 1,
+  "seed": 987,
+  "algorithm": "ALNS_Baseline",
+  "max_iter": 300,
+  "timestamp": "2026-05-06T19:17:05.861557",
+  "success": true,
+  "best_cost": 16456.753511064726,
+  "num_routes": 25,
+  "elapsed_time": 41.62522792816162,
+  "n_customers": 100,
+  "total_iterations": 300
+}

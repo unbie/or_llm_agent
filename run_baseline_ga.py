@@ -31,6 +31,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from baseline_ga import GAVRPSolver
 
+try:
+    from tqdm import tqdm
+except Exception:
+    tqdm = None
+
 
 # ──────────────────────────────────────────────────
 # 数据加载 (与 run_batch_no_llm.py 完全一致)
@@ -171,26 +176,73 @@ def run_single_ga_experiment(
 # 批量实验 (与 ALNS 使用相同算例集)
 # ──────────────────────────────────────────────────
 
-# 与 run_batch_no_llm.py 保持完全一致的实验配置
-EXPERIMENT_SUITE = [
+# 与 run_batch_no_llm.py 保持一致的核心 30 实验配置
+CORE30_SUITE = [
     ('c1',  'c101.txt', 3),
+    ('c1',  'c102.txt', 3),
+    ('c1',  'c103.txt', 3),
+    ('c1',  'c104.txt', 3),
     ('c1',  'c105.txt', 3),
     ('c2',  'c201.txt', 3),
+    ('c2',  'c202.txt', 3),
+    ('c2',  'c203.txt', 3),
+    ('c2',  'c204.txt', 3),
     ('c2',  'c205.txt', 3),
     ('r1',  'r101.txt', 3),
+    ('r1',  'r102.txt', 3),
+    ('r1',  'r103.txt', 3),
+    ('r1',  'r104.txt', 3),
     ('r1',  'r105.txt', 3),
     ('r2',  'r201.txt', 3),
+    ('r2',  'r202.txt', 3),
+    ('r2',  'r203.txt', 3),
+    ('r2',  'r204.txt', 3),
     ('r2',  'r205.txt', 3),
     ('rc1', 'rc101.txt', 3),
+    ('rc1', 'rc102.txt', 3),
+    ('rc1', 'rc103.txt', 3),
+    ('rc1', 'rc104.txt', 3),
     ('rc1', 'rc105.txt', 3),
     ('rc2', 'rc201.txt', 3),
+    ('rc2', 'rc202.txt', 3),
+    ('rc2', 'rc203.txt', 3),
+    ('rc2', 'rc204.txt', 3),
     ('rc2', 'rc205.txt', 3),
 ]
+
+
+FULL56_GROUPS = {
+    'c1': [f'c10{i}.txt' for i in range(1, 10)],
+    'c2': [f'c20{i}.txt' for i in range(1, 9)],
+    'r1': [f'r10{i}.txt' for i in range(1, 10)] + ['r110.txt', 'r111.txt', 'r112.txt'],
+    'r2': [f'r20{i}.txt' for i in range(1, 10)] + ['r210.txt', 'r211.txt'],
+    'rc1': [f'rc10{i}.txt' for i in range(1, 9)],
+    'rc2': [f'rc20{i}.txt' for i in range(1, 9)],
+}
+
+
+def build_experiment_suite(suite_name: str = 'core30', runs_per_instance: int = 3):
+    """根据套件名构造批量实验列表。"""
+    suite_name = (suite_name or 'core30').lower()
+
+    if suite_name == 'core30':
+        return [(t, inst, runs_per_instance) for t, inst, _ in CORE30_SUITE]
+
+    if suite_name == 'full56':
+        suite = []
+        for dataset_type, instances in FULL56_GROUPS.items():
+            for inst in instances:
+                suite.append((dataset_type, inst, runs_per_instance))
+        return suite
+
+    raise ValueError(f"不支持的 suite: {suite_name}")
 
 
 def run_batch_ga_experiments(
     pop_size: int = 80,
     max_gen: int = 500,
+    suite_name: str = 'core30',
+    runs_per_instance: int = 1,
     output_dir: str = "experiments_ga_baseline",
 ):
     """
@@ -208,69 +260,99 @@ def run_batch_ga_experiments(
     results_dir.mkdir(parents=True, exist_ok=True)
 
     dataset_base = Path("data/1 Solomon Benchmark")
+    experiment_suite = build_experiment_suite(suite_name, runs_per_instance)
 
-    total_runs = sum(runs for _, _, runs in EXPERIMENT_SUITE)
-    print(f"总计: {len(EXPERIMENT_SUITE)} 个数据集, {total_runs} 次运行")
+    total_runs = sum(runs for _, _, runs in experiment_suite)
+    print(f"实例集: {suite_name} | 每实例运行次数: {runs_per_instance}")
+    print(f"总计: {len(experiment_suite)} 个数据集, {total_runs} 次运行")
     print()
 
     all_results = []
+
+    run_tasks = []
+    for dataset_type, instance, num_runs in experiment_suite:
+        instance_name = instance.replace('.txt', '')
+        for run_id in range(1, num_runs + 1):
+            run_tasks.append((dataset_type, instance, instance_name, run_id))
+
+    if tqdm is not None:
+        task_iter = tqdm(run_tasks, total=len(run_tasks), desc="GA Batch", ncols=100)
+    else:
+        task_iter = run_tasks
+
     exp_idx = 0
 
-    for dataset_type, instance, num_runs in EXPERIMENT_SUITE:
+    for dataset_type, instance, instance_name, run_id in task_iter:
         dataset_path = dataset_base / dataset_type / instance
         if not dataset_path.exists():
             print(f"[跳过] 数据集不存在: {dataset_path}")
             continue
 
-        instance_name = instance.replace('.txt', '')
+        exp_idx += 1
+        exp_name = f"{dataset_type}_{instance_name}_run{run_id}"
+        seed = run_id * 42 + hash(instance_name) % 1000
+        result_file = results_dir / f"{exp_name}.json"
 
-        for run_id in range(1, num_runs + 1):
-            exp_idx += 1
-            exp_name = f"{dataset_type}_{instance_name}_run{run_id}"
-            seed = run_id * 42 + hash(instance_name) % 1000
+        if result_file.exists():
+            try:
+                with open(result_file, 'r', encoding='utf-8') as f:
+                    cached = json.load(f)
+                all_results.append(cached)
+                msg = f"[{exp_idx:2d}/{total_runs}] {exp_name} 已存在结果，跳过运行"
+                if tqdm is not None:
+                    tqdm.write(msg)
+                else:
+                    print(msg)
+                continue
+            except Exception:
+                msg = f"[{exp_idx:2d}/{total_runs}] {exp_name} 已存在结果文件但读取失败，将重新运行"
+                if tqdm is not None:
+                    tqdm.write(msg)
+                else:
+                    print(msg)
 
+        if tqdm is None:
             print(f"[{exp_idx:2d}/{total_runs}] {exp_name}")
 
-            result = run_single_ga_experiment(
-                dataset_path=str(dataset_path),
-                pop_size=pop_size,
-                max_gen=max_gen,
-                seed=seed,
-                verbose=False,   # 批量模式下关闭详细输出
-            )
+        result = run_single_ga_experiment(
+            dataset_path=str(dataset_path),
+            pop_size=pop_size,
+            max_gen=max_gen,
+            seed=seed,
+            verbose=True,
+        )
 
-            if result['success']:
-                print(f"  ✓ Cost={result['best_cost']:.2f} | "
-                      f"Routes={result['num_routes']} | "
-                      f"Time={result['elapsed_time']:.1f}s | "
-                      f"Gen={result['best_gen']}")
-            else:
-                print(f"  ✗ 失败: {result['output'][:200]}")
+        if result['success']:
+            print(f"  ✓ Cost={result['best_cost']:.2f} | "
+                  f"Routes={result['num_routes']} | "
+                  f"Time={result['elapsed_time']:.1f}s | "
+                  f"Gen={result['best_gen']}")
+        else:
+            print(f"  ✗ 失败: {result['output'][:200]}")
 
-            result_data = {
-                'exp_name':     exp_name,
-                'dataset_type': dataset_type,
-                'instance':     instance_name,
-                'run_id':       run_id,
-                'seed':         seed,
-                'algorithm':    'GA',
-                'pop_size':     pop_size,
-                'max_gen':      max_gen,
-                'timestamp':    datetime.now().isoformat(),
-                'success':      result['success'],
-                'best_cost':    result['best_cost'],
-                'num_routes':   result['num_routes'],
-                'elapsed_time': result['elapsed_time'],
-                'n_customers':  result['n_customers'],
-                'best_gen':     result['best_gen'],
-                # 不保存完整历史曲线以节省空间 (太长)
-            }
+        result_data = {
+            'exp_name':     exp_name,
+            'dataset_type': dataset_type,
+            'instance':     instance_name,
+            'run_id':       run_id,
+            'seed':         seed,
+            'algorithm':    'GA',
+            'pop_size':     pop_size,
+            'max_gen':      max_gen,
+            'timestamp':    datetime.now().isoformat(),
+            'success':      result['success'],
+            'best_cost':    result['best_cost'],
+            'num_routes':   result['num_routes'],
+            'elapsed_time': result['elapsed_time'],
+            'n_customers':  result['n_customers'],
+            'best_gen':     result['best_gen'],
+            # 不保存完整历史曲线以节省空间 (太长)
+        }
 
-            all_results.append(result_data)
+        all_results.append(result_data)
 
-            result_file = results_dir / f"{exp_name}.json"
-            with open(result_file, 'w', encoding='utf-8') as f:
-                json.dump(result_data, f, indent=2, ensure_ascii=False)
+        with open(result_file, 'w', encoding='utf-8') as f:
+            json.dump(result_data, f, indent=2, ensure_ascii=False)
 
     # 汇总
     summary_file = out_path / "all_results.json"
@@ -303,8 +385,8 @@ def run_batch_ga_experiments(
 # ──────────────────────────────────────────────────
 
 def quick_test(dataset_type: str = 'c1', instance: str = 'c101',
-               pop_size: int = 80, max_gen: int = 500):
-    """快速测试单个算例，打印详细日志。"""
+               pop_size: int = 80, max_gen: int = 500, outdir: str = 'experiments_ga_baseline'):
+    """快速测试单个算例，打印详细日志，并保存 json 结果到文件夹。"""
     dataset_path = Path(f"data/1 Solomon Benchmark/{dataset_type}/{instance}.txt")
     if not dataset_path.exists():
         print(f"[错误] 数据集不存在: {dataset_path}")
@@ -314,11 +396,12 @@ def quick_test(dataset_type: str = 'c1', instance: str = 'c101',
     print(f"GA 快速测试 | {dataset_type}/{instance} | pop={pop_size} | gen={max_gen}")
     print(f"{'='*60}\n")
 
+    seed = 1 * 42 + hash(instance) % 1000
     result = run_single_ga_experiment(
         dataset_path=str(dataset_path),
         pop_size=pop_size,
         max_gen=max_gen,
-        seed=42,
+        seed=seed,
         verbose=True,
     )
 
@@ -328,6 +411,34 @@ def quick_test(dataset_type: str = 'c1', instance: str = 'c101',
     print(f"ELAPSED: {result['elapsed_time']:.2f}s")
     print(f"{'─'*60}")
     print(result['output'])
+
+    if result['success']:
+        # 写入 JSON, 参考 c2_c203_run1.json 的完整格式
+        out_path = Path(outdir) / "results"
+        out_path.mkdir(parents=True, exist_ok=True)
+        
+        json_data = {
+            "exp_name": f"{dataset_type}_{instance}_run1",
+            "dataset_type": dataset_type,
+            "instance": instance,
+            "run_id": 1,
+            "seed": seed,
+            "algorithm": "GA",
+            "pop_size": pop_size,
+            "max_gen": max_gen,
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "best_cost": result["best_cost"],
+            "num_routes": result["num_routes"],
+            "elapsed_time": result["elapsed_time"],
+            "n_customers": result["n_customers"],
+            "best_gen": result["best_gen"]
+        }
+        
+        json_file = out_path / f"{dataset_type}_{instance}_run1.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(json_data, f, indent=2, ensure_ascii=False)
+        print(f"\n[已写入] 单算例结果已保存至: {json_file}")
 
 
 # ──────────────────────────────────────────────────
@@ -359,6 +470,9 @@ if __name__ == '__main__':
     parser.add_argument('--instance', default='c101',      help='算例名称 (不含.txt, 如 c101)')
     parser.add_argument('--pop',      type=int, default=80,  help='种群规模 (默认80)')
     parser.add_argument('--gen',      type=int, default=500, help='最大代数 (默认500)')
+    parser.add_argument('--suite',    default='core30', choices=['core30', 'full56'],
+                        help='批量实例集: core30(默认) 或 full56(全56算例)')
+    parser.add_argument('--runs',     type=int, default=1, help='每个实例运行次数 (默认1)')
     parser.add_argument('--outdir',   default='experiments_ga_baseline', help='批量实验结果目录')
 
     args = parser.parse_args()
@@ -367,6 +481,8 @@ if __name__ == '__main__':
         run_batch_ga_experiments(
             pop_size=args.pop,
             max_gen=args.gen,
+            suite_name=args.suite,
+            runs_per_instance=args.runs,
             output_dir=args.outdir,
         )
     else:
@@ -375,4 +491,5 @@ if __name__ == '__main__':
             instance=args.instance,
             pop_size=args.pop,
             max_gen=args.gen,
+            outdir=args.outdir,
         )

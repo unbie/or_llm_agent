@@ -1,0 +1,40 @@
+---
+title: LLM优化算子与ALNS_GA可视化对比
+description: 基于C101、C105、C201、C205四个实例，展示LLM优化算子与传统ALNS、GA的对比图
+author: OR-LLM Agent
+ms.date: 2026-04-16
+ms.topic: concept
+keywords:
+  - LLM
+  - ALNS
+  - GA
+  - 可视化
+  - C101
+  - C105
+  - C201
+  - C205
+estimated_reading_time: 3
+---
+## 图1 最优成本对比
+
+![最优成本对比](../experiments_llm_optimize/analysis_outputs/figures/llm_alns_ga_best_cost_comparison.png)
+
+## 图2 相对提升率对比
+
+![相对提升率对比](../experiments_llm_optimize/analysis_outputs/figures/llm_alns_ga_gain_comparison.png)
+
+## 图3 三算法最优成本折线图
+
+![三算法最优成本折线图](../experiments_llm_optimize/analysis_outputs/figures/llm_alns_ga_best_cost_line.png)
+
+## 图4 稳定性对比（均值+误差线）
+
+![稳定性对比](../experiments_llm_optimize/analysis_outputs/figures/llm_alns_ga_stability_errorbar.png)
+
+## 结果解读
+
+- LLM优化算子相对GA在4个实例上均为正提升。
+- LLM优化算子相对传统ALNS呈实例相关，在4个实例上表现为2胜2负。
+- 折线图展示了三算法在四个算例上的整体趋势差异，LLM与ALNS总体接近，且二者均优于GA。
+- 稳定性图中，ALNS与GA以3次重复实验的“均值±标准差”展示波动范围，误差线越短表示稳定性越好。
+- 详细数值表见 [experiments_llm_optimize/analysis_outputs/llm_alns_ga_comparison.csv](../experiments_llm_optimize/analysis_outputs/llm_alns_ga_comparison.csv)。

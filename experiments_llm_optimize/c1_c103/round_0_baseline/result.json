@@ -1,0 +1,41 @@
+{
+  "round": 0,
+  "type": "baseline",
+  "best_cost": 29681.20790350731,
+  "mean_cost": 29681.20790350731,
+  "std_cost": 0.0,
+  "eval_runs": 1,
+  "seeds": [
+    42
+  ],
+  "num_routes": 30,
+  "elapsed_time": 55.091861724853516,
+  "metrics": {
+    "best_cost": 29681.20790350731,
+    "num_routes": 30,
+    "elapsed_time": 55.091861724853516,
+    "initial_cost": 101684.91108017988,
+    "improvement_pct": 70.81060740653714,
+    "operator_stats": "  _random_removal: 210 次使用, 97 次成功 (46.2%)\n  _route_removal: 10 次使用, 1 次成功 (10.0%)\n  _string_removal: 80 次使用, 29 次成功 (36.2%)\n  _greedy_insert: 82 次使用, 23 次成功 (28.0%)\n  _regret_insert: 218 次使用, 104 次成功 (47.7%)",
+    "total_iters": 300,
+    "last_improve_iter": 296,
+    "stagnation_iters": 4,
+    "early_improvement_pct": 97.8217624362404,
+    "c11": 7200,
+    "c12": 7533.620657749418,
+    "c13": 3277.236493818422,
+    "c2": 13394.632451990274,
+    "c3": 10500.0,
+    "c11_pct": 17.18151981545793,
+    "c12_pct": 17.977646196286777,
+    "c13_pct": 7.820542188678205,
+    "c2_pct": 31.963908735367596,
+    "c3_pct": 25.056383064209477,
+    "avg_customers_per_route": 3.3333333333333335,
+    "avg_load_utilization": 30.166666666666668,
+    "eval_runs": 1,
+    "eval_mean_cost": 29681.20790350731,
+    "eval_std_cost": 0.0,
+    "eval_best_cost": 29681.20790350731
+  }
+}

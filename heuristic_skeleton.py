@@ -33,16 +33,16 @@ class HeuristicSolver:
             self.plugin.greedy_insert,
             self.plugin.regret_insert
         ]
-        self.d_weights = [1.0] * len(self.destroy_ops)
-        self.i_weights = [1.0] * len(self.insert_ops)
+        self.d_weights = [1.0, 0.5, 2.0]
+        self.i_weights = [0.7, 2.0]
         self.last_d_idx = 0
         self.last_i_idx = 0
-        self.rho = 0.1  # 记忆系数（文档建议0.1-0.4）
+        self.rho = 0.2  # 记忆系数（文档建议0.1-0.4）
         
-        # 分数设置（文档推荐 σ₁=33, σ₂=9, σ₃=3, σ₄=0）
-        self.sigma1 = 33  # 找到全局最优
-        self.sigma2 = 9   # 找到改进方案
-        self.sigma3 = 3   # 被接受但未改进
+        # 分数设置（C类实例调参：强化全局最优和改进奖励）
+        self.sigma1 = 50  # 找到全局最优
+        self.sigma2 = 15  # 找到改进方案
+        self.sigma3 = 1   # 被接受但未改进
         self.sigma4 = 0   # 未被接受
         
         # 算子统计记录（实战技巧：记录和可视化）
@@ -65,7 +65,7 @@ class HeuristicSolver:
         self.weight_history = {'destroy': [], 'insert': []}  # 权重变化曲线
         
         # 候选集限制参数（技巧4：加速计算）
-        self.candidate_list_size = 10  # 只考虑最近的K个位置
+        self.candidate_list_size = 30  # 只考虑最近的K个位置
         
         print("Solver 初始化成功")
     
@@ -594,11 +594,11 @@ class HeuristicSolver:
         '''
         # 根据奖励类型确定分数
         if reward == 'global_best':
-            score = self.sigma1  # 33
+            score = self.sigma1  # 50
         elif reward == 'improved':
-            score = self.sigma2  # 9
+            score = self.sigma2  # 15
         elif reward == 'accepted':
-            score = self.sigma3  # 3
+            score = self.sigma3  # 1
         else:  # rejected
             score = self.sigma4  # 0
         
@@ -772,7 +772,7 @@ class HeuristicSolver:
             # 将路径ID列表转换为客户节点对象列表
             route_nodes = [self.id_to_customer[node_id] for node_id in route_ids]
             
-            # ⚠️ 调用正确的方法：calculate_route_cost
+            #  调用正确的方法：calculate_route_cost
             route_cost_info = self.calculator.calculate_route_cost(route_nodes, self.dist_matrix)
             
             # 累加变动成本
@@ -843,7 +843,7 @@ class HeuristicSolver:
         
         return True
     
-    def solve(self, max_iters=300):
+    def solve(self, max_iters=3000):
         '''ALNS 求解器
         
         Args:
@@ -972,11 +972,11 @@ class HeuristicSolver:
         
         # ALNS参数 - 平衡探索与利用
         # 使用适中的初始温度，避免前期成本飙升
-        T = max(current_cost * 0.10, 100) if current_cost < float('inf') else 100  # 初始温度（能接受差10%的解）
+        T = max(current_cost * 0.04, 100) if current_cost < float('inf') else 100  # 初始温度（偏向利用）
         
         # 自适应冷却系数：线性冷却策略
         # 目标：平滑地从探索过渡到利用
-        target_ratio = 0.02  # 最终温度为初始温度的2%
+        target_ratio = 0.005  # 最终温度为初始温度的0.5%
         alpha = target_ratio ** (1.0 / max_iters)  # 在max_iters次迭代后达到目标温度
         
         print(f"[参数] 初始温度: {T:.2f}, 冷却系数: {alpha:.6f}, 迭代次数: {max_iters}")
@@ -986,8 +986,8 @@ class HeuristicSolver:
         last_improve_iter = 0
         
         # 评估周期和重启阈值与迭代次数成比例
-        segment_size = max(50, int(max_iters * 0.25))  # 每25%迭代调整一次权重
-        restart_threshold = max(60, int(max_iters * 0.6))  # 60%迭代无改善时重启（更宽容）
+        segment_size = max(50, int(max_iters * 0.10))  # 每10%迭代调整一次权重
+        restart_threshold = max(60, int(max_iters * 0.35))  # 35%迭代无改善时重启
         
         for iteration in range(max_iters):
             self.current_iteration = iteration  # 更新当前迭代次数（用于history_removal）
@@ -999,17 +999,17 @@ class HeuristicSolver:
             threshold_high = max_iters * 0.53    # ~53%无改善
             
             if no_improve_count > threshold_high:
-                # 长时间无改善，适度增大扰动到30%
-                base_remove = max(3, int(len(non_depot) * 0.20))
-                max_remove = max(5, int(len(non_depot) * 0.30))
+                # 长时间无改善，适度增大扰动到28%
+                base_remove = max(3, int(len(non_depot) * 0.18))
+                max_remove = max(5, int(len(non_depot) * 0.28))
             elif no_improve_count > threshold_medium:
-                # 中等扰动20%
-                base_remove = max(2, int(len(non_depot) * 0.15))
-                max_remove = max(4, int(len(non_depot) * 0.20))
+                # 中等扰动16%
+                base_remove = max(2, int(len(non_depot) * 0.10))
+                max_remove = max(4, int(len(non_depot) * 0.16))
             else:
-                # 小步优化（默认12%-18%）
-                base_remove = max(2, int(len(non_depot) * 0.12))
-                max_remove = max(3, int(len(non_depot) * 0.18))
+                # 小步优化（默认6%-10%）
+                base_remove = max(2, int(len(non_depot) * 0.06))
+                max_remove = max(3, int(len(non_depot) * 0.10))
             num_remove = random.randint(base_remove, max_remove)
             
             try:
@@ -1099,7 +1099,7 @@ class HeuristicSolver:
                 current_cost = best_cost
                 no_improve_count = 0
                 # 再加热：恢复到初始温度的50%，增强探索
-                T = max(best_cost * 0.10, 100) * 0.5  
+                T = max(best_cost * 0.04, 100) * 0.5  
                 print(f"[迭代 {iteration:3d}] 重启到最优解（再加热T={T:.1f}，阈值={restart_threshold}）")
             
             # 周期性权重归一化（每 segment_size 轮）
@@ -1150,7 +1150,7 @@ class HeuristicSolver:
         
         return best_solution, best_cost
     
-    def solve_multi_run(self, max_iters=300, num_runs=3):
+    def solve_multi_run(self, max_iters=3000, num_runs=3):
         '''多次运行取最优解
         
         Args:
